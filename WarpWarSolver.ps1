@@ -3,8 +3,9 @@ $templateAttrSpec= "PD=0 B=0 S=0 T=0 M=0 SR=0 C=0 SH=0 A=0 E=0 H=0 R=0 CP=0 SWG=
 $templateInfoSpec= "Name=TS1_-_Template_Ship Owner=Template_Owner Location=COORD[0,0] BPCost=0 Universe=Reign_Of_Stars"
 $templateSpec    = "{0} -- {1}" -f $templateInfoSpec, $templateAttrSpec
 
-$WS1Spec    = "Name=WS1_-_Gladia_001 Owner=Empire Location=COORD[1,1] -- SWG=1 PD=4 B=2 S=1"
-$WS2Spec    = "Name=WS2_-_Vulpis_001 Owner=Rebels Location=COORD[2,2] -- SWG=1 PD=4 T=1 S=1 M=3"
+$WS1Spec    = "Name=WSI-01-001_-_Gladius_001 Owner=Empire Location=COORD[1,1] -- SWG=1 PD=4 B=2 S=1"
+$WS2Spec    = "Name=WSR-01-001_-_Vulpine_001 Owner=Rebels Location=COORD[2,2] -- SWG=1 PD=4 T=1 S=1 M=3"
+
 
 function main()
 {
@@ -12,21 +13,35 @@ function main()
     param(
         [string[]]$argList
     )
-    $WSSpecs     = @($WS1Spec, $WS2Spec)
-    $shipObjects = @()
+    
+    $shipObjects = initializeGameObjects $argList
 
-    "Loading numeric cost spec..."
+    WriteSummary -shipSet $shipObjects
+}
+
+function initializeGameObjects()
+{
+    [cmdletbinding()]
+    param(
+        [string[]]$argList
+    )
+    
+    $shipObjects = @()
+    $WSSpecs     = @($WS1Spec, $WS2Spec)
+
+    Write-Debug "Loading numeric cost spec..."
     $bpCosts = HashFromSpec -hashSpec $bpCostSpec -numeric
 
-    "Loading ship template..."
+    Write-Debug "Loading ship template..."
     $shipTemplate = loadShip -spec $templateSpec
     
-    "Loading real ships..."
+    Write-Debug "Loading real ships..."
     $WSSpecs | % { $newShip = loadShip -spec $_ -template $shipTemplate -costSpec $bpCosts; $shipObjects += @($newShip); }
 
-    WriteSummary     -verboseSet (@($shipTemplate)+$shipObjects) -shipSet $shipObjects
-    WriteCostSummary -costSpec $bpCosts | % { $_ }
-    return
+    WriteCostSummary -costSpec $bpCosts | % { $_ } | Out-String | Write-Verbose
+    WriteSummary     -verboseSet (@($shipTemplate)+$shipObjects) -shipSet $null | Out-String | Write-Verbose
+
+    return $shipObjects
 }
 
 #Text-to-object loading functions
@@ -35,9 +50,9 @@ function loadShip($spec, $template, $costSpec)
 {
 
     $infoSpec, $attrSpec = ($spec -split " -- ")
-    Write-Host " -- Loading text info ..."
+    # Write-Host " -- Loading text info ..."
     $ship = HashFromSpec -hashSpec $infoSpec
-    Write-Host " -- Loading numeric attributes ..."
+    # Write-Host " -- Loading numeric attributes ..."
     $ship["attrs"]= HashFromSpec -hashSpec $attrSpec -numeric
 
     #Post-Process
@@ -98,20 +113,24 @@ function printShipInfo
 
 function WriteSummary($verboseSet, $shipSet)
 {
-    ($verboseSet) | % {
-        ""
-        "*******************************************************"
-        printShipInfoVerbose $_
-        "*******************************************************"
-        ""
+    if($verboseSet -ne $null){
+        ($verboseSet) | % {
+            ""
+            "*******************************************************"
+            printShipInfoVerbose $_
+            "*******************************************************"
+            ""
+        }
     }
 
-    ($shipSet) | % {
-        ""
-        "*******************************************************"
-        printShipInfo $_
-        "*******************************************************"
-        ""
+    if($shipSet -ne $null){
+        ($shipSet) | % {
+            ""
+            "*******************************************************"
+            printShipInfo $_
+            "*******************************************************"
+            ""
+        }
     }
 }
 
@@ -124,5 +143,5 @@ function WriteCostSummary($costSpec)
     ""
 }
 
-main($args);
+main($args) -Verbose
 
