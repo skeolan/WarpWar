@@ -38,16 +38,16 @@ function initializeGameObjects()
 
     Write-Verbose "Loading numeric cost spec..."
     $bpCostsLookup = HashFromSpec -hashSpec $bpCostSpec  -numeric
-	$bpCostsLookup | Out-String | Write-Verbose
+	WriteLookupTable $bpCostsLookup | % {if($_ -ne "") {"        |$_ |"} else {$_} } | Out-String | Write-Verbose
     Write-Verbose "Loading max size spec..."
 	$maxSizeLookup = HashFromSpec -hashSpec $maxSizeSpec -numeric
-	$maxSizeLookup | Out-String | Write-Verbose
+	WriteLookupTable $maxSizeLookup | % {if($_ -ne "") {"        |$_ |"} else {$_} } | Out-String | Write-Verbose
     Write-Verbose "Loading PD-Per-MP spec..."
 	$pdPerMPLookup = HashFromSpec -hashSpec $pdPerMPSpec -numeric
-	$pdPerMPLookup | Out-String | Write-Verbose
+	WriteLookupTable $pdPerMPLookup | % {if($_ -ne "") {"        |$_ |"} else {$_} } | Out-String | Write-Verbose
     Write-Verbose "Loading Hull value spec..."
 	$hullLookup    = HashFromSpec -hashSpec $hullSpec    -numeric
-	$hullLookup | Out-String | Write-Verbose
+	WriteLookupTable $hullLookup    | % {if($_ -ne "") {"        |$_ |"} else {$_} } | Out-String | Write-Verbose
 	
 
     Write-Verbose "Loading ship template..."
@@ -55,12 +55,11 @@ function initializeGameObjects()
     
     Write-Verbose "Loading real ships..."
     $WSSpecs | foreach { 
-		$newShip = loadShip -spec $_ -template $shipTemplate -bpCostsLookup $bpCostsLookup -maxSizeLookup $maxSizeLookup -pdPerMPLookup $pdPerMPLookup -hullLookup $hullLookup; 
+		$newShip = loadShip -spec $_ -template $shipTemplate -myBPCostsLookup $bpCostsLookup -myMaxSizeLookup $maxSizeLookup -myPDPerMPLookup $pdPerMPLookup -myHullLookup $hullLookup; 
 		$shipObjects += @($newShip); 
 		}
 
     Write-Verbose "Writing summaries of loaded data..."
-	WriteCostSummary -costSpec $bpCosts | % { $_ } | Out-String | Write-Verbose
     WriteSummary     -shipSet (@($shipTemplate)+$shipObjects) -includeZeroes | Out-String | Write-Verbose
 
     Write-Verbose ( "Complete! returning {0} initialized ships" -f $shipObjects.Count)
@@ -69,7 +68,7 @@ function initializeGameObjects()
 
 #Text-to-object loading functions
 
-function loadShip($spec, $template, $bpCostsLookup, $maxSizeLookup, $pdPerMPLookup, $hullLookup)
+function loadShip($spec, $template, $myBPCostsLookup, $myMaxSizeLookup, $myPDPerMPLookup, $myHullLookup)
 {
     $infoSpec, $attrSpec = ($spec -split " -- ")
     Write-Verbose "  -- Loading text info ..."
@@ -82,13 +81,13 @@ function loadShip($spec, $template, $bpCostsLookup, $maxSizeLookup, $pdPerMPLook
       if($template -ne $null) { $template.GetEnumerator() | ? {$_.Key -ne "attrs" } | % { if (-not $ship.ContainsKey($_.Key)) {$ship.add($_.Key, $_.Value) } } }
       if($template -ne $null) { $template.attrs.GetEnumerator() | % { if (-not $ship.attrs.ContainsKey($_.Key)) {$ship.attrs.add($_.Key, $_.Value) } } }
     Write-Verbose "  -- Calculate BP cost based on cost spec and unit attributes"
-      $ship.attrs.BPCost  = calcBPCost           -attrSet $ship.attrs -costSpec $bpCostsLookup
-    Write-Verbose "  -- Calculate maxSize based on maxSizeSpec and SWG/MWG/LWG/SB allocation"
-	  $ship.attrs.maxSize = calcMonoDerivedValue -attrSet $ship.attrs -depSpec  $maxSizeLookup
-    Write-Verbose "  -- Calculate PDPerMP based on pdPerMPSpec and SWG/MWG/LWG/SB allocation"
-	  $ship.attrs.PDPerMP = calcMonoDerivedValue -attrSet $ship.attrs -depSpec  $pdPerMPLookup
+      $ship.attrs.BPCost  = calcBPCost           -attrSet $ship.attrs -costSpec $myBPCostsLookup
+    Write-Verbose "  -- Calculate maxSize attr for $ship.Name based on maxSizeSpec and SWG/MWG/LWG/SB allocation $myMaxSizeLookup"
+	  $ship.attrs.maxSize = calcMonoDerivedValue -attrSet $ship.attrs -depSpec  $myMaxSizeLookup
+    Write-Verbose "  -- Calculate PDPerMP attr for $ship.Name based on pdPerMPSpec and SWG/MWG/LWG/SB allocation $myPDPerMPLookup"
+	  $ship.attrs.PDPerMP = calcMonoDerivedValue -attrSet $ship.attrs -depSpec  $myPDPerMPLookup
     Write-Verbose "  -- Calculate Hull based on hullSpec and SWG/MWG/LWG/SB allocation, Armor, ..."
-	#  $ship.attrs.PDPerMP = calcSumDerivedValue  -attrSet $ship.attrs -depSpec ( HashFromSpec -hashSpec $hullSpec    -numeric )
+	#  $ship.attrs.Hull = calcSumDerivedValue  -attrSet $ship.attrs -depSpec $myHullLookup
 	  
     return $ship
 }
@@ -134,18 +133,20 @@ function calcMonoDerivedValue()
 	
 	$derivedValue = $null
 	
-	# Only nonzero attributes matter
-	$attrSet.GetEnumerator() | ? { $_.Value -ne 0 } | foreach { 
-		write-Verbose ("     calcMonoDerivedValue enumerate over {0}:{1} against depSpec {2}" -f $_.Key, $_.Value, $depSpec)
+	if ($depSpec -eq $null) { Write-Debug "calcMonoDerivedValue call made with a null lookup table, will return -1" }
+	
+	# Only nonzero attributes matter, AND only evaluate if lookup table is non-null
+	$attrSet.GetEnumerator() | ? { $_.Value -ne 0 -and $depSpec -ne $null } | foreach { 
+		write-Debug ("     calcMonoDerivedValue enumerate over {0}:{1} against depSpec {2}" -f $_.Key, $_.Value, $depSpec)
 		if($depSpec.ContainsKey($_.Key)) { 
 			$newDerivedValue = $depSpec[$_.Key]
-			Write-Verbose ("          Found deriving attribute {0} which yields {1}" -f $_.Key, $depSpec[$_.Key])
+			Write-Debug ("          Found deriving attribute {0} which yields {1}" -f $_.Key, $depSpec[$_.Key])
 			if ($derivedValue -eq $null -or ($minResult -and $newDerivedValue -lt $derivedValue) -or ($newDerivedValue -gt $derivedValue))
 			{
 				$derivedValue = $newDerivedValue
 			}
 		} 
-		write-Verbose ("     Done! candidate is {0}" -f $derivedValue)
+		write-Debug ("     Done! candidate is {0}" -f $derivedValue)
 	}
 	
 	if($derivedValue -eq $null) { $derivedValue = -1 }
@@ -154,17 +155,6 @@ function calcMonoDerivedValue()
 }
 
 #Print Functions
-
-function printShipInfoVerbose
-{
-    [HashTable] $s = $args[0]
-    $AttrSummary   = ""
-    $s.GetEnumerator() | % { if($_.Key -ne "attrs") { "{0,-20} -- {1}" -f $_.Key, $_.Value } } 
-
-    $s.attrs.GetEnumerator() | % { $AttrSummary += $_.Key + ":" + $_.Value + " " }
-    "{0,-20} -- {1}" -f "Attributes", $AttrSummary
-}
-
 function printShipInfo
 {
     [cmdletBinding()]
@@ -173,12 +163,13 @@ function printShipInfo
 		[switch] $includeZeroes
 	); 
 	
-    $AttrSummary   = ""
-	$s.attrs.GetEnumerator() | ? { ($_.Value -ne 0) -or $includeZeroes -eq $true } | % { $AttrSummary += $_.Key + ":" + $_.Value + " " }
+    $AttrSummary   = "| "
+	$s.attrs.GetEnumerator() | ? { ($_.Value -ne 0) -or $includeZeroes -eq $true } | % { $AttrSummary += ("{0,-10}:{1,10} |`n{2} | " -f $_.Key, $_.Value, (" "*20))  }
+	$AttrSummary += ("-"*21)+" |"
 	
 	#Return
     $s.GetEnumerator() | % { if($_.Key -ne "attrs") { "{0,-20} -- {1}" -f $_.Key, $_.Value } } 
-    "{0,-20} -- {1}" -f "Attributes", $AttrSummary
+    "{0,-20} {1}" -f "Attributes", $AttrSummary
 }
 
 function WriteSummary()
@@ -186,25 +177,29 @@ function WriteSummary()
     [cmdletBinding()]
 	param(
 		$shipSet,
-		[switch] $includeZeroes
-	);
+		[switch]    $includeZeroes
+	)
     ($shipSet) | % {
-		""
-		"*******************************************************"
+		''
+		' '+'*'*44
 		if($includeZeroes) { printShipInfo -s $_ -includeZeroes }
 		else               { printShipInfo -s $_                }
-		"*******************************************************"
-		""
+		' '+'*'*44
+		''
 	}
 }
 
-function WriteCostSummary($costSpec)
+function WriteLookupTable()
 {
-    ""
-    '$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$'
-    $costSpec.GetEnumerator() | % { "{0,-20} costs `${1}" -f $_.Key, $_.Value }
-    '$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$'
-    ""
+    [cmdletBinding()]
+	param(
+		[HashTable] $t
+	)
+    ''
+	' '+'*'*44
+    $t.GetEnumerator() | % { " {0,-20} -- {1,20}" -f $_.Key, $_.Value }
+    ' '+'*'*44
+	''
 }
 
 main($args)# -Verbose
