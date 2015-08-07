@@ -14,7 +14,8 @@ param(
 ,   $templateAttrSpec        = "PD=0 B=0 S=0 T=0 M=0 SR=0 C=0 SH=0 A=0 E=0 H=0 R=0 CP=0 SWG=0 MWG=0 LWG=0 SB=0 BPCost=0 MaxSize=0 PDPerMP=0 Hull=0"
 ,   $templateSpec            = ("{0} -- {1}" -f $templateInfoSpec, $templateAttrSpec)
 ,   $WS1Spec                 = ("{0} -- {1}" -f "Name=WSI-01-001_-_Gladius_001 Owner=Empire Location=COORD[1,1]", "SWG=1 MWG=1 PD=4 B=2 S=1")
-,   $WS2Spec                 = ("{0} -- {1}" -f "Name=WSR-01-001_-_Vulpine_001 Owner=Rebels Location=COORD[2,2]", "SWG=1 SB=1 PD=4 T=1 S=1 M=3")
+,   $WS2Spec                 = ("{0} -- {1}" -f "Name=WSR-01-001_-_Vulpine_001 Owner=Rebels Location=COORD[2,2]", "SWG=1 PD=4 T=1 S=1 M=3")
+
 )
 	
 $onDebugAction   = "Continue"
@@ -96,7 +97,7 @@ function initializeGameObjects()
 		$shipObjects += @($newShip); 
 		}
 
-    Write-Debug ( "Complete! Initialized {0} ships" -f $shipObjects.Count)
+    Write-Debug ( "Init Complete! Initialized {0} ships" -f $shipObjects.Count)
     Write-Debug( WriteSummary -shipSet (@($shipTemplate)+$shipObjects) -includeZeroes | Out-String )
 
 	return $shipObjects
@@ -110,19 +111,27 @@ function validate-GameObject()
 		$GO 
 	)
 	write-Verbose "Validating $($GO.Name)"
-	$resultList = @()
-	
+		
 	$GOa = $GO.attrs
 	
-	#Game-Object should only have one hull-defining component (*WG or SB)
-	write-debug ("Hull uniqueness rule -- SWG:{0}, MWG:{1}, LWG:{2}, SB:{3}" -f $GOa.SWG, $GOa.MWG, $GOa.LWG, $GOa.SB)
-	if($GOa.SWG + $GOa.MWG + $GOa.LWG + $GOa.SB -gt 1) { $resultList += "Multiple WarpGen and/or SB components" }
+	#Game-Object should only have one maxSize/PDPerMP-defining component (*WG or SB or *SS)
+	write-debug ("Hull uniqueness? -- SWG:{0}, MWG:{1}, LWG:{2}, SB:{3}" -f $GOa.SWG, $GOa.MWG, $GOa.LWG, $GOa.SB)
+	if($GOa.SWG + $GOa.MWG + $GOa.LWG + $GOa.SB -gt 1) { "Multiple WarpGen and/or SB components" }
 	
-	#Rule2
-	write-debug ("Rule 2")
-	if(1 -eq 1) { $resultList += "Rule 2"}
+	#BPCost should be less than MaxSize
+	write-debug ("BPCost within threshold? -- BPCost:{0}, MaxSize:{1}" -f $GOa.BPCost, $GOa.MaxSize)
+	if($GOa.BPCost -gt $GOa.MaxSize) { "BP Cost {0} Exceeds Maximum {1} for Hull/Drive Type" -f $GOa.BPCost, $GOa.MaxSize }
 	
-	return $resultList
+	#Attributes probably shouldn't be negative
+	write-debug ("")
+	if(($GOa.GetEnumerator() | ? { $_.Value -lt 0 } | Measure-Object).Count -gt 0) {"One or more attrs are negative"}
+	
+	#Hangar space ( SR attr * Hull attr )cannot be exceeded by hull sizes of attached units.
+	write-debug ("Sum of parasite hulls ({0}) less than parent-hull times SR attribute ({1})?" -f 0, ($GOa.Hull*$GOa.SR))
+	if(($GOa.Hull * $GOa.SR) -lt 0) {"Hangar maximum {0} exceeded by attached units {1}" -f ($GOa.Hull * $GOa.SR), 0}
+
+	# ??? Stricter variant -- EACH SR cannot accommodate a unit bigger than parent's Hull
+	# ...
 }
 
 
