@@ -4,17 +4,17 @@ param(
     $const_combat_max_rounds = 3
 	
 	#Initial Configuration. Should probably become possible input parameters
-,   $bpCostSpec              = "PD=1 B=1 S=1 T=1 M=1/3 SR=1 C=1 SH=1/6 A=1/2 E=1 H=1/10 R=5 CP=15 SWG=3 MWG=5 LWG=10 SB=25"
-,   $maxSizeSpec             = "SWG=15 MWG=60 LWG=250 SB=1000"
-,   $pdPerMPSpec             = "SWG=1 MWG=2 LWG=3 SB=9999"
-,   $hullSpec                = "SWG=1 MWG=4 LWG=16 SB=64 A=1 PD=1 CP=5"
+,   $BPCostSpec              = "PD=1 B=1 S=1 T=1 M=1/3 SR=1 C=1 SH=1/6 A=1/2 E=1 H=1/10 R=5 CP=15 SWG=3 MWG=5 LWG=10 SB=25"
+,   $maxSizeSpec             = "SWG=12 MWG=50 LWG=200 SB=800 SSS=4 MSS=16 LSS=64 GSS=256"
+,   $pdPerMPSpec             = "SWG=1 MWG=2 LWG=3 SB=9999 SSS=9999 MSS=9999 LSS=9999 GSS=9999"
+,   $hullSpec                = "SWG=1 MWG=4 LWG=16 SB=64 A=1 PD=1 CP=5 SR=1"
 
     #Template and combatant warship specs                          
 ,   $templateInfoSpec        = "Name=TS1_-_Template_Ship Owner=Template_Owner Location=COORD[0,0] Universe=Reign_Of_Stars Valid=???"
-,   $templateAttrSpec        = "PD=0 B=0 S=0 T=0 M=0 SR=0 C=0 SH=0 A=0 E=0 H=0 R=0 CP=0 SWG=0 MWG=0 LWG=0 SB=0 BPCost=0 MaxSize=0 PDPerMP=0 Hull=0"
+,   $templateAttrSpec        = "PD=0 B=0 S=0 T=0 M=0 SR=0 C=0 SH=0 A=0 E=0 H=0 R=0 CP=0 SWG=0 MWG=0 LWG=0 SB=0 _BPCost=0 _MaxSize=0 _PDPerMP=0 _Hull=0"
 ,   $templateSpec            = ("{0} -- {1}" -f $templateInfoSpec, $templateAttrSpec)
 ,   $WS1Spec                 = ("{0} -- {1}" -f "Name=WSI-01-001_-_Gladius_001 Owner=Empire Location=COORD[1,1]", "SWG=1 MWG=1 PD=4 B=2 S=1")
-,   $WS2Spec                 = ("{0} -- {1}" -f "Name=WSR-01-001_-_Vulpine_001 Owner=Rebels Location=COORD[2,2]", "SWG=1 PD=4 T=1 S=1 M=3")
+,   $WS2Spec                 = ("{0} -- {1}" -f "Name=WSR-01-001_-_Vulpine_001 Owner=Rebels Location=COORD[2,2]", "SWG=1 PD=54 T=1 S=1 M=3")
 
 )
 	
@@ -72,8 +72,8 @@ function initializeGameObjects()
     $WSSpecs     = @($WS1Spec, $WS2Spec)
 
     Write-Debug " - Loading numeric cost spec..."
-    $bpCostsLookup = HashFromSpec -hashSpec $bpCostSpec  -numeric
-	Write-Debug (WriteLookupTable $bpCostsLookup | % {if($_ -ne "") {"        |$_ |"} else {$_} } | Out-String)
+    $BPCostsLookup = HashFromSpec -hashSpec $BPCostSpec  -numeric
+	Write-Debug (WriteLookupTable $BPCostsLookup | % {if($_ -ne "") {"        |$_ |"} else {$_} } | Out-String)
     
 	Write-Debug " - Loading max size spec..."
 	$maxSizeLookup = HashFromSpec -hashSpec $maxSizeSpec -numeric
@@ -93,7 +93,7 @@ function initializeGameObjects()
     
     Write-Debug " - Loading real ships..."
     $WSSpecs | foreach { 
-		$newShip = loadShip -spec $_ -template $shipTemplate -myBPCostsLookup $bpCostsLookup -myMaxSizeLookup $maxSizeLookup -myPDPerMPLookup $pdPerMPLookup -myHullLookup $hullLookup; 
+		$newShip = loadShip -spec $_ -template $shipTemplate -myBPCostsLookup $BPCostsLookup -myMaxSizeLookup $maxSizeLookup -myPDPerMPLookup $pdPerMPLookup -myHullLookup $hullLookup; 
 		$shipObjects += @($newShip); 
 		}
 
@@ -114,23 +114,23 @@ function validate-GameObject()
 		
 	$GOa = $GO.attrs
 	
-	#Game-Object should only have one maxSize/PDPerMP-defining component (*WG or SB or *SS)
+	#Game-Object should only have one _MaxSize/_PDPerMP-defining component (*WG or SB or *SS)
 	write-debug ("Hull uniqueness? -- SWG:{0}, MWG:{1}, LWG:{2}, SB:{3}" -f $GOa.SWG, $GOa.MWG, $GOa.LWG, $GOa.SB)
 	if($GOa.SWG + $GOa.MWG + $GOa.LWG + $GOa.SB -gt 1) { "Multiple WarpGen and/or SB components" }
 	
-	#BPCost should be less than MaxSize
-	write-debug ("BPCost within threshold? -- BPCost:{0}, MaxSize:{1}" -f $GOa.BPCost, $GOa.MaxSize)
-	if($GOa.BPCost -gt $GOa.MaxSize) { "BP Cost {0} Exceeds Maximum {1} for Hull/Drive Type" -f $GOa.BPCost, $GOa.MaxSize }
+	#_BPCost should be less than _MaxSize
+	write-debug ("_BPCost within threshold? -- _BPCost:{0}, _MaxSize:{1}" -f $GOa._BPCost, $GOa._MaxSize)
+	if($GOa._BPCost -gt $GOa._MaxSize) { "BP Cost {0} Exceeds Maximum {1} for Hull/Drive Type" -f $GOa._BPCost, $GOa._MaxSize }
 	
 	#Attributes probably shouldn't be negative
 	write-debug ("")
 	if(($GOa.GetEnumerator() | ? { $_.Value -lt 0 } | Measure-Object).Count -gt 0) {"One or more attrs are negative"}
 	
-	#Hangar space ( SR attr * Hull attr )cannot be exceeded by hull sizes of attached units.
-	write-debug ("Sum of parasite hulls ({0}) less than parent-hull times SR attribute ({1})?" -f 0, ($GOa.Hull*$GOa.SR))
-	if(($GOa.Hull * $GOa.SR) -lt 0) {"Hangar maximum {0} exceeded by attached units {1}" -f ($GOa.Hull * $GOa.SR), 0}
+	#Hangar space ( SR attr * _Hull attr )cannot be exceeded by hull sizes of attached units.
+	write-debug ("Sum of parasite hulls ({0}) less than parent-hull times SR attribute ({1})?" -f 0, ($GOa._Hull*$GOa.SR))
+	if(($GOa._Hull * $GOa.SR) -lt 0) {"Hangar maximum {0} exceeded by attached units {1}" -f ($GOa._Hull * $GOa.SR), 0}
 
-	# ??? Stricter variant -- EACH SR cannot accommodate a unit bigger than parent's Hull
+	# ??? Stricter variant -- EACH SR cannot accommodate a unit bigger than parent's _Hull
 	# ...
 }
 
@@ -148,13 +148,13 @@ function loadShip($spec, $template, $myBPCostsLookup, $myMaxSizeLookup, $myPDPer
       if($template -ne $null) { $template.GetEnumerator() | ? {$_.Key -ne "attrs" } | % { if (-not $ship.ContainsKey($_.Key)) {$ship.add($_.Key, $_.Value) } } }
       if($template -ne $null) { $template.attrs.GetEnumerator() | % { if (-not $ship.attrs.ContainsKey($_.Key)) {$ship.attrs.add($_.Key, $_.Value) } } }
     Write-Debug "  -- Calculate BP cost based on cost spec and unit attributes"
-	  $ship.attrs.BPCost  = ( (get-DerivedValueSet -attrSet $ship.attrs -depSpec $myBPCostsLookup)  | measure-object -sum).sum
-    Write-Debug "  -- Calculate maxSize attr for $ship.Name based on maxSizeSpec and SWG/MWG/LWG/SB allocation $myMaxSizeLookup"
-	  $ship.attrs.maxSize = ( (get-DerivedValueSet -attrSet $ship.attrs -depSpec  $myMaxSizeLookup) | measure-object -maximum).maximum
-    Write-Debug "  -- Calculate PDPerMP attr for $ship.Name based on pdPerMPSpec and SWG/MWG/LWG/SB allocation $myPDPerMPLookup"
-	  $ship.attrs.PDPerMP = ( (get-DerivedValueSet -attrSet $ship.attrs -depSpec  $myPDPerMPLookup) | measure-object -maximum).maximum  
-    Write-Debug "  -- Calculate Hull based on hullSpec and SWG/MWG/LWG/SB allocation, Armor, ..."
-	  $ship.attrs.Hull    = ( (get-DerivedValueSet -attrSet $ship.attrs -depSpec  $myHullLookup)    | measure-object -sum).sum
+	  $ship.attrs._BPCost  = ( (get-DerivedValueSet -attrSet $ship.attrs -depSpec $myBPCostsLookup)  | measure-object -sum).sum
+    Write-Debug "  -- Calculate _MaxSize attr for $ship.Name based on maxSizeSpec and SWG/MWG/LWG/SB allocation $myMaxSizeLookup"
+	  $ship.attrs._MaxSize = ( (get-DerivedValueSet -attrSet $ship.attrs -depSpec  $myMaxSizeLookup) | measure-object -maximum).maximum
+    Write-Debug "  -- Calculate _PDPerMP attr for $ship.Name based on pdPerMPSpec and SWG/MWG/LWG/SB allocation $myPDPerMPLookup"
+	  $ship.attrs._PDPerMP = ( (get-DerivedValueSet -attrSet $ship.attrs -depSpec  $myPDPerMPLookup) | measure-object -maximum).maximum  
+    Write-Debug "  -- Calculate _Hull based on hullSpec and S*/M*/L*/H*/SB allocation, PD, SR, CP, A, ..."
+	  $ship.attrs._Hull    = ( (get-DerivedValueSet -attrSet $ship.attrs -depSpec  $myHullLookup)    | measure-object -sum).sum
 	  
     $ship["validationNotes"] = validate-GameObject -Game-Object $ship
 	if($ship.validationNotes -eq $null -or $ship.validationNotes.Count -eq 0) {$ship.Valid="true"} 
@@ -214,16 +214,13 @@ function printShipInfo
 	); 
 	
     $AttrSummary  = "| "
-	$s.attrs.GetEnumerator() | ? { ($_.Value -ne 0) -or $includeZeroes -eq $true } | % { $AttrSummary += ("{0,-10}:{1,10} |`n{2} | " -f $_.Key, $_.Value, (" "*15))  }
+	$s.attrs.GetEnumerator() | sort name | ? { ($_.Value -ne 0) -or $includeZeroes -eq $true } | % { $AttrSummary += ("{0,-10}:{1,10} |`n{2} | " -f $_.Key, $_.Value, (" "*15))  }
 	$AttrSummary += ("-"*21)+" |"
 	
-	$ValSummary   = ""
-	if($s.validationNotes.Count -gt 0) { $ValSummary += "{0}:`n  - {1}"   -f "Validation", ($s.validationNotes -join "`n  - ") }
-	
 	#Return
-    $s.GetEnumerator() | % { if($_.Key -ne "attrs" -and $_.Key -ne "validationNotes") { "{0,-15} -- {1}" -f $_.Key, $_.Value } } 
+    $s.GetEnumerator() | % { if($_.Key -ne "attrs" -and $_.Key -ne "validationNotes" -and $_.Key -ne "Valid") { "{0,-15} | {1}" -f $_.Key, $_.Value } } 
     "{0,-15} {1}" -f "Attributes", $AttrSummary
-	$ValSummary
+	if($s.Valid -eq "false") { "{0}:`n  - {1}"   -f "INVALID", ($s.validationNotes -join "`n  - ") }
 }
 
 function WriteSummary()
