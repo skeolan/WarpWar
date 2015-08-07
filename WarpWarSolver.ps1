@@ -10,8 +10,8 @@ param(
 ,   $hullSpec                = "SWG=1 MWG=4 LWG=16 SB=64 A=1 PD=1 CP=5"
 
     #Template and combatant warship specs                          
+,   $templateInfoSpec        = "Name=TS1_-_Template_Ship Owner=Template_Owner Location=COORD[0,0] Universe=Reign_Of_Stars Valid=???"
 ,   $templateAttrSpec        = "PD=0 B=0 S=0 T=0 M=0 SR=0 C=0 SH=0 A=0 E=0 H=0 R=0 CP=0 SWG=0 MWG=0 LWG=0 SB=0 BPCost=0 MaxSize=0 PDPerMP=0 Hull=0"
-,   $templateInfoSpec        = "Name=TS1_-_Template_Ship Owner=Template_Owner Location=COORD[0,0] Universe=Reign_Of_Stars"
 ,   $templateSpec            = ("{0} -- {1}" -f $templateInfoSpec, $templateAttrSpec)
 ,   $WS1Spec                 = ("{0} -- {1}" -f "Name=WSI-01-001_-_Gladius_001 Owner=Empire Location=COORD[1,1]", "SWG=1 MWG=1 PD=4 B=2 S=1")
 ,   $WS2Spec                 = ("{0} -- {1}" -f "Name=WSR-01-001_-_Vulpine_001 Owner=Rebels Location=COORD[2,2]", "SWG=1 SB=1 PD=4 T=1 S=1 M=3")
@@ -44,10 +44,7 @@ function main()
 		Write-Verbose "End Round $_ - result code: $result"
 		Write-Verbose ""
 	}
-	
 	Write-Verbose "End combat!"
-	
-	
 }
 
 #region Combat execution
@@ -60,7 +57,6 @@ function Evaluate-CombatRound()
 	
 	return -1
 }
-
 #endregion
 
 #region Game-object loading functions
@@ -106,34 +102,56 @@ function initializeGameObjects()
 	return $shipObjects
 }
 
+function validate-GameObject()
+{
+	[cmdletBinding()]
+	param(
+		[alias ("Game-Object")]
+		$GO 
+	)
+	write-Verbose "Validating $($GO.Name)"
+	$resultList = @()
+	
+	$GOa = $GO.attrs
+	
+	#Game-Object should only have one hull-defining component (*WG or SB)
+	write-debug ("Hull uniqueness rule -- SWG:{0}, MWG:{1}, LWG:{2}, SB:{3}" -f $GOa.SWG, $GOa.MWG, $GOa.LWG, $GOa.SB)
+	if($GOa.SWG + $GOa.MWG + $GOa.LWG + $GOa.SB -gt 1) { $resultList += "Multiple WarpGen and/or SB components" }
+	
+	#Rule2
+	write-debug ("Rule 2")
+	if(1 -eq 1) { $resultList += "Rule 2"}
+	
+	return $resultList
+}
+
 
 function loadShip($spec, $template, $myBPCostsLookup, $myMaxSizeLookup, $myPDPerMPLookup, $myHullLookup)
 {
     $infoSpec, $attrSpec = ($spec -split " -- ")
-    Write-Debug "  -- Loading text info ..."
-    $ship = HashFromSpec -hashSpec $infoSpec
-    Write-Debug "  -- Loading numeric attributes ..."  
-    $ship["attrs"]= HashFromSpec -hashSpec $attrSpec -numeric
+    Write-Debug "  Load Ship Specs..."
+    $ship                    = HashFromSpec -hashSpec $infoSpec
+    $ship["attrs"]           = HashFromSpec -hashSpec $attrSpec -numeric
+	$ship["validationNotes"] = @()
 
     Write-Debug "  Post-Process..."
     Write-Debug "  -- Instantiate all templated values not overridden by spec"
       if($template -ne $null) { $template.GetEnumerator() | ? {$_.Key -ne "attrs" } | % { if (-not $ship.ContainsKey($_.Key)) {$ship.add($_.Key, $_.Value) } } }
       if($template -ne $null) { $template.attrs.GetEnumerator() | % { if (-not $ship.attrs.ContainsKey($_.Key)) {$ship.attrs.add($_.Key, $_.Value) } } }
     Write-Debug "  -- Calculate BP cost based on cost spec and unit attributes"
-      $ship.attrs.BPCost  = calcBPCost           -attrSet $ship.attrs -costSpec $myBPCostsLookup
+	  $ship.attrs.BPCost  = ( (get-DerivedValueSet -attrSet $ship.attrs -depSpec $myBPCostsLookup)  | measure-object -sum).sum
     Write-Debug "  -- Calculate maxSize attr for $ship.Name based on maxSizeSpec and SWG/MWG/LWG/SB allocation $myMaxSizeLookup"
-	  $ship.attrs.maxSize = calcDerivedValue -attrSet $ship.attrs -depSpec  $myMaxSizeLookup
+	  $ship.attrs.maxSize = ( (get-DerivedValueSet -attrSet $ship.attrs -depSpec  $myMaxSizeLookup) | measure-object -maximum).maximum
     Write-Debug "  -- Calculate PDPerMP attr for $ship.Name based on pdPerMPSpec and SWG/MWG/LWG/SB allocation $myPDPerMPLookup"
-	  $ship.attrs.PDPerMP = calcMonoDerivedValue -attrSet $ship.attrs -depSpec  $myPDPerMPLookup
+	  $ship.attrs.PDPerMP = ( (get-DerivedValueSet -attrSet $ship.attrs -depSpec  $myPDPerMPLookup) | measure-object -maximum).maximum  
     Write-Debug "  -- Calculate Hull based on hullSpec and SWG/MWG/LWG/SB allocation, Armor, ..."
-	#$ship.attrs.Hull      = (calcMultiDerivedValue  -attrSet $ship.attrs -depSpec $myHullLookup | measure-object sum).sum
+	  $ship.attrs.Hull    = ( (get-DerivedValueSet -attrSet $ship.attrs -depSpec  $myHullLookup)    | measure-object -sum).sum
 	  
-    return $ship
-}
-
-function calcBPCost ($attrSet, $costSpec)
-{
-    ($attrSet.GetEnumerator() | ? { $_.Value -ne 0 } | % { [decimal]::Ceiling( [decimal]$_.Value * [decimal]$costSpec[$_.Key] ); } | measure-object -sum).Sum
+    $ship["validationNotes"] = validate-GameObject -Game-Object $ship
+	if($ship.validationNotes -eq $null -or $ship.validationNotes.Count -eq 0) {$ship.Valid="true"} 
+	else {$ship.Valid="false"}
+	
+	return $ship
 }
 
 function HashFromSpec()
@@ -154,45 +172,6 @@ function HashFromSpec()
     $myHash
 }
 
-#If a single point of a single attribute determines a new ship's value, 
-# this function uses a ship's attribute set plus the "lookup table" to find the derived value.
-#    -- For example, a Small Warp Generator limits ship size to 9BP per the basic rules and costs 1 PD per MP.
-# Default "max" behavior means if multiple ship attributes match the "lookup" spec, the highest result becomes the calculated result.
-# Override this by passing the -minResult flag.
-#    -- For example, a SWG and a MWG present on the same ship push the BP limit up to 45 and the PD per MP cost both up to 2. No MinResult flag needed.
-#    -- Some theoretical optional attribute e.g. "FighterLaunchDelay" might want to defer toward minimum in the event of multiple qualifying attributes.
-function calcMonoDerivedValue()
-{
-	[cmdletBinding()]
-	param(
-		 [HashTable] $attrSet, 
-		 [HashTable] $depSpec,
-		 [switch]    $minResult=$false
-	)
-	
-	$derivedValue = $null
-	
-	if ($depSpec -eq $null) { Write-Debug "calcMonoDerivedValue call made with a null lookup table, will return -1" }
-	
-	# Only nonzero attributes matter, AND only evaluate if lookup table is non-null
-	$attrSet.GetEnumerator() | ? { $_.Value -ne 0 -and $depSpec -ne $null } | foreach { 
-		write-Debug ("     calcMonoDerivedValue enumerate over {0}:{1} against depSpec {2}" -f $_.Key, $_.Value, $depSpec)
-		if($depSpec.ContainsKey($_.Key)) { 
-			$newDerivedValue = $depSpec[$_.Key]
-			Write-Debug ("          Found deriving attribute {0} which yields {1}" -f $_.Key, $depSpec[$_.Key])
-			if ($derivedValue -eq $null -or ($minResult -and $newDerivedValue -lt $derivedValue) -or ($newDerivedValue -gt $derivedValue))
-			{
-				$derivedValue = $newDerivedValue
-			}
-		} 
-		write-Debug ("     Done! candidate is {0}" -f $derivedValue)
-	}
-	
-	if($derivedValue -eq $null) { $derivedValue = -1 }
-	
-	$derivedValue
-}
-
 function get-DerivedValueSet()
 {
 	[cmdletBinding()]
@@ -202,20 +181,18 @@ function get-DerivedValueSet()
 	)
 	
 	if ($depSpec -eq $null) {
-		Write-Debug "calcMonoDerivedValue call made with a null lookup table, will return -1" 
+		Write-Debug "get-derivedValueSet call made with a null lookup table, will return -1" 
 		return -1
 	}
 	
 	# Only nonzero attributes matter, AND only evaluate if lookup table is non-null
 	$attrSet.GetEnumerator() | ? { $_.Value -ne 0 -and $depSpec -ne $null } | foreach { 
-		write-Debug ("     calcMonoDerivedValue enumerate over {0}:{1} against depSpec {2}" -f $_.Key, $_.Value, $depSpec)
+		write-Debug ("     get-derivedValueSet enumerate over {0}:{1} against depSpec {2}" -f $_.Key, $_.Value, $depSpec)
 		if($depSpec.ContainsKey($_.Key)) { 
 			return $depSpec[$_.Key] * $_.Value
 		} 
 	}
 }
-#endregion
-
 #endregion
 
 #region Print Functions
@@ -227,13 +204,17 @@ function printShipInfo
 		[switch] $includeZeroes
 	); 
 	
-    $AttrSummary   = "| "
+    $AttrSummary  = "| "
 	$s.attrs.GetEnumerator() | ? { ($_.Value -ne 0) -or $includeZeroes -eq $true } | % { $AttrSummary += ("{0,-10}:{1,10} |`n{2} | " -f $_.Key, $_.Value, (" "*15))  }
 	$AttrSummary += ("-"*21)+" |"
 	
+	$ValSummary   = ""
+	if($s.validationNotes.Count -gt 0) { $ValSummary += "{0}:`n  - {1}"   -f "Validation", ($s.validationNotes -join "`n  - ") }
+	
 	#Return
-    $s.GetEnumerator() | % { if($_.Key -ne "attrs") { "{0,-15} -- {1}" -f $_.Key, $_.Value } } 
+    $s.GetEnumerator() | % { if($_.Key -ne "attrs" -and $_.Key -ne "validationNotes") { "{0,-15} -- {1}" -f $_.Key, $_.Value } } 
     "{0,-15} {1}" -f "Attributes", $AttrSummary
+	$ValSummary
 }
 
 function WriteSummary()
