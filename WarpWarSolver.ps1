@@ -4,18 +4,21 @@ param(
     $const_combat_max_rounds = 3
 	
 	#Initial Configuration. Should probably become possible input parameters
-,   $BPCostSpec              = "PD=1 B=1 S=1 T=1 M=1/3 SR=1 C=1 SH=1/6 A=1/2 E=1 H=1/10 R=5 CP=15 SWG=3 MWG=5 LWG=10 SB=25"
-,   $maxSizeSpec             = "SWG=12 MWG=50 LWG=200 SB=800 SSS=4 MSS=16 LSS=64 GSS=256"
+,   $BPCostSpec              = "PD=1 B=1 S=1 T=1 M=1/3 SR=1 C=1 SH=1/6 A=1/2 E=1 H=1/10 R=5 CP=15 SWG=3 MWG=5 LWG=10 SSS=1 MSS=1 LSS=2 GSS=4 SB=25"
+,   $maxSizeSpec             = "SWG=12 MWG=50 LWG=200 SB=800 SSS=5 MSS=20 LSS=80 GSS=320"
 ,   $pdPerMPSpec             = "SWG=1 MWG=2 LWG=3 SB=9999 SSS=9999 MSS=9999 LSS=9999 GSS=9999"
 ,   $hullSpec                = "SWG=1 MWG=4 LWG=16 SB=64 A=1 PD=1 CP=5 SR=1"
 
     #Template and combatant warship specs                          
-,   $templateInfoSpec        = "Name=TS1_-_Template_Ship Owner=Template_Owner Location=COORD[0,0] Universe=Reign_Of_Stars Valid=???"
+,   $templateInfoSpec        = "ID=TS1-01-001 Name=Template_Ship Owner=Template_Owner Location=COORD[-,-] Universe=Reign_Of_Stars Valid=??? Racks="
 ,   $templateAttrSpec        = "PD=0 B=0 S=0 T=0 M=0 SR=0 C=0 SH=0 A=0 E=0 H=0 R=0 CP=0 SWG=0 MWG=0 LWG=0 SB=0 _BPCost=0 _MaxSize=0 _PDPerMP=0 _Hull=0"
 ,   $templateSpec            = ("{0} -- {1}" -f $templateInfoSpec, $templateAttrSpec)
-,   $WS1Spec                 = ("{0} -- {1}" -f "Name=WSI-01-001_-_Gladius_001 Owner=Empire Location=COORD[1,1]", "SWG=1 MWG=1 PD=4 B=2 S=1")
-,   $WS2Spec                 = ("{0} -- {1}" -f "Name=WSR-01-001_-_Vulpine_001 Owner=Rebels Location=COORD[2,2]", "SWG=1 PD=54 T=1 S=1 M=3")
-
+,   $shipSpecs               = @(
+                                 "{0} -- {1}" -f "ID=WSI-01-001 Name=Gladius_001 Owner=Empire Location=COORD[1,1]", "SWG=1 MWG=1 PD=4 B=2 S=1"
+                                ,"{0} -- {1}" -f "ID=WSR-01-001 Name=Vulpine_001 Owner=Rebels Location=COORD[2,2] Racks=SSR-0A-00A", "SWG=1 PD=3 T=1 S=1 M=3 SR=1"
+                                ,"{0} -- {1}" -f "ID=SSR-0A-00A Name=Kitsune_00A Owner=Rebels", "SSS=1 PD=2 B=1 S=1"
+#								,"{0} -- {1}" -f "ID=SSR-0A-00B Name=Kitsune_00B Owner=Rebels", "SSS=1 PD=2 B=1 S=1"
+								)
 )
 	
 $onDebugAction   = "Continue"
@@ -35,13 +38,13 @@ function main()
 	Write-Verbose "Game objects initialized."
 	
 	Write-Verbose "Starting ships' state:"
-    Write-Host ( WriteSummary -shipSet $shipObjects | Out-String)
+    Write-Host ( WriteSummary -shipSet $shipObjects.Values | Out-String)
 	
 	Write-Verbose "Begin combat!"
 	1..$const_combat_max_rounds | foreach {
 		Write-Verbose "Begin Round $_"
-		$result = Evaluate-CombatRound -ships $shipObjects
-		Write-Verbose (WriteSummary -shipSet $shipObjects | Out-String)
+		$result = Evaluate-CombatRound -ships $shipObjects.Values
+		Write-Verbose (WriteSummary -shipSet $shipObjects.Values | Out-String)
 		Write-Verbose "End Round $_ - result code: $result"
 		Write-Verbose ""
 	}
@@ -68,8 +71,7 @@ function initializeGameObjects()
         [string[]]$argList
     )
 	
-    $shipObjects = @()
-    $WSSpecs     = @($WS1Spec, $WS2Spec)
+    $shipObjects = @{}
 
     Write-Debug " - Loading numeric cost spec..."
     $BPCostsLookup = HashFromSpec -hashSpec $BPCostSpec  -numeric
@@ -92,13 +94,13 @@ function initializeGameObjects()
     $shipTemplate = loadShip -spec $templateSpec
     
     Write-Debug " - Loading real ships..."
-    $WSSpecs | foreach { 
+    $shipSpecs | foreach { 
 		$newShip = loadShip -spec $_ -template $shipTemplate -myBPCostsLookup $BPCostsLookup -myMaxSizeLookup $maxSizeLookup -myPDPerMPLookup $pdPerMPLookup -myHullLookup $hullLookup; 
-		$shipObjects += @($newShip); 
-		}
+		$shipObjects.add($newShip.ID, $newShip); 
+	}
 
     Write-Debug ( "Init Complete! Initialized {0} ships" -f $shipObjects.Count)
-    Write-Debug( WriteSummary -shipSet (@($shipTemplate)+$shipObjects) -includeZeroes | Out-String )
+    Write-Debug( WriteSummary -shipSet (@($shipTemplate)+$shipObjects.Values) -includeZeroes | Out-String )
 
 	return $shipObjects
 }
@@ -127,10 +129,10 @@ function validate-GameObject()
 	if(($GOa.GetEnumerator() | ? { $_.Value -lt 0 } | Measure-Object).Count -gt 0) {"One or more attrs are negative"}
 	
 	#Hangar space ( SR attr * _Hull attr )cannot be exceeded by hull sizes of attached units.
-	write-debug ("Sum of parasite hulls ({0}) less than parent-hull times SR attribute ({1})?" -f 0, ($GOa._Hull*$GOa.SR))
-	if(($GOa._Hull * $GOa.SR) -lt 0) {"Hangar maximum {0} exceeded by attached units {1}" -f ($GOa._Hull * $GOa.SR), 0}
+	write-debug ("More racked hulls ({0}) than SR attribute ({1})?" -f $GO.Racks.Count, $GOa.SR)
+	if($GOa.SR -lt $GO.Racks.Count) {"Hangar maximum ({0}) exceeded by attached units ({1})" -f $GOa.SR, $GO.Racks.Count}
 
-	# ??? Stricter variant -- EACH SR cannot accommodate a unit bigger than parent's _Hull
+	# ??? Stricter variant -- SR cannot accommodate a unit bigger than parent's _Hull
 	# ...
 }
 
@@ -138,8 +140,9 @@ function validate-GameObject()
 function loadShip($spec, $template, $myBPCostsLookup, $myMaxSizeLookup, $myPDPerMPLookup, $myHullLookup)
 {
     $infoSpec, $attrSpec = ($spec -split " -- ")
-    Write-Debug "  Load Ship Specs..."
+    Write-Debug "  Load Ship Info..."
     $ship                    = HashFromSpec -hashSpec $infoSpec
+	Write-Debug "  Load Ship Attributes..."
     $ship["attrs"]           = HashFromSpec -hashSpec $attrSpec -numeric
 	$ship["validationNotes"] = @()
 
@@ -155,7 +158,10 @@ function loadShip($spec, $template, $myBPCostsLookup, $myMaxSizeLookup, $myPDPer
 	  $ship.attrs._PDPerMP = ( (get-DerivedValueSet -attrSet $ship.attrs -depSpec  $myPDPerMPLookup) | measure-object -maximum).maximum  
     Write-Debug "  -- Calculate _Hull based on hullSpec and S*/M*/L*/H*/SB allocation, PD, SR, CP, A, ..."
 	  $ship.attrs._Hull    = ( (get-DerivedValueSet -attrSet $ship.attrs -depSpec  $myHullLookup)    | measure-object -sum).sum
-	  
+	Write-Debug "  -- Instantiate Rack content ID list ['$($ship.Racks)']"
+	  $ship.Racks          = if([string]$ship.Racks -eq "") { @() } else { $ship.Racks -split "," }
+	Write-Debug "  -- Found $($ship.Racks.Count) ships in racks -- '$($ship.Racks)'"
+	
     $ship["validationNotes"] = validate-GameObject -Game-Object $ship
 	if($ship.validationNotes -eq $null -or $ship.validationNotes.Count -eq 0) {$ship.Valid="true"} 
 	else {$ship.Valid="false"}
@@ -174,6 +180,7 @@ function HashFromSpec()
     ($hashSpec -split " ") | foreach {
         $myKey=($_ -split "=")[0]
         $myVal=($_ -split "=")[1]
+		write-Debug ("{0} = {1}" -f $myKey, $myVal)
         if($numeric) { $myVal=Invoke-Expression $myVal }
         else         { $myVal=$myVal -replace "_", " " }
         $myHash.add($myKey, $myVal)
@@ -213,13 +220,33 @@ function printShipInfo
 		[switch] $includeZeroes
 	); 
 	
+	#Excluded info fields -- fields which either need additional special handling, 
+	$exclInfoFields = ("attrs", "validationNotes", "Valid", "Racks")
+	#Ordered info fields
+	$orderedInfoFields = ("ID", "Name", "Owner", "Universe") 
+	$orderedInfoFields | % { "{0,-15} | {1}" -f $_, $s["$_"] }
+	#Unordered info fields - just display alphabetically
+    $s.GetEnumerator() | sort name | foreach { 
+		if(-not $orderedInfoFields.Contains($_.Key) -and -not $exclInfoFields.Contains($_.Key)) { 
+			"{0,-15} | {1}" -f $_.Key, $_.Value 
+		} 
+	} 
+	#Complex fields
+	""
     $AttrSummary  = "| "
 	$s.attrs.GetEnumerator() | sort name | ? { ($_.Value -ne 0) -or $includeZeroes -eq $true } | % { $AttrSummary += ("{0,-10}:{1,10} |`n{2} | " -f $_.Key, $_.Value, (" "*15))  }
 	$AttrSummary += ("-"*21)+" |"
+    "{0,-16}| {1} |`n{2}{3}" -f "Attributes", ("-"*21), (" " * 16), $AttrSummary
+	if($s.Racks.Count -gt 0 -or $includeZeroes)
+	{ 
+		$RackSummary  = ""
+		$RackSummary += if($s.Racks.Count -gt 0){ "| " } else{ "" }
+		if($s.Racks.Count -gt 0) { $s.Racks | % { $_.Trim() } | % { $RackSummary += ("{0, -21} |`n{1} | " -f $_, (" "*15)) } }
+		$RackSummary += "| "+("-"*21)+" |"
+		""
+		"{0,-16}| {1} |`n{2}{3}" -f "Racks", ("-"*21), (" " * 16), $RackSummary.replace("| | ", "| ")
+	}
 	
-	#Return
-    $s.GetEnumerator() | % { if($_.Key -ne "attrs" -and $_.Key -ne "validationNotes" -and $_.Key -ne "Valid") { "{0,-15} | {1}" -f $_.Key, $_.Value } } 
-    "{0,-15} {1}" -f "Attributes", $AttrSummary
 	if($s.Valid -eq "false") { "{0}:`n  - {1}"   -f "INVALID", ($s.validationNotes -join "`n  - ") }
 }
 
