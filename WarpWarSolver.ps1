@@ -15,7 +15,7 @@ param(
 ,   $templateSpec            = ("{0} -- {1}" -f $templateInfoSpec, $templateAttrSpec)
 ,   $shipSpecs               = @(
                                  "{0} -- {1}" -f "ID=WSI-01-001 Name=Gladius_001 Owner=Empire Location=COORD[1,1]", "SWG=1 MWG=1 PD=4 B=2 S=1"
-                                ,"{0} -- {1}" -f "ID=WSR-01-001 Name=Vulpine_001 Owner=Rebels Location=COORD[2,2] Racks=SSR-0A-00A", "SWG=1 PD=3 T=1 S=1 M=3 SR=1"
+                                ,"{0} -- {1}" -f "ID=WSR-01-001 Name=Vulpine_001 Owner=Rebels Location=COORD[2,2] Racks=SSR-0A-00A,SSR-0A-00B", "SWG=1 PD=3 T=1 S=1 M=3 SR=1"
                                 ,"{0} -- {1}" -f "ID=SSR-0A-00A Name=Kitsune_00A Owner=Rebels", "SSS=1 PD=2 B=1 S=1"
 #								,"{0} -- {1}" -f "ID=SSR-0A-00B Name=Kitsune_00B Owner=Rebels", "SSS=1 PD=2 B=1 S=1"
 								)
@@ -133,7 +133,8 @@ function validate-GameObject()
 	if($GOa.SR -lt $GO.Racks.Count) {"Hangar maximum ({0}) exceeded by attached units ({1})" -f $GOa.SR, $GO.Racks.Count}
 
 	# ??? Stricter variant -- SR cannot accommodate a unit bigger than parent's _Hull
-	# ...
+	#write-debug ("Ship carrying a bigger ship?")
+	#if($GOa.SR
 }
 
 
