@@ -15,9 +15,9 @@ param(
 ,   $templateSpec            = ("{0} -- {1}" -f $templateInfoSpec, $templateAttrSpec)
 ,   $shipSpecs               = @(
                                  "{0} -- {1}" -f "ID=WSI-01-001 Name=Gladius_001 Owner=Empire Location=COORD[1,1]", "SWG=1 MWG=1 PD=4 B=2 S=1"
-                                ,"{0} -- {1}" -f "ID=WSR-01-001 Name=Vulpine_001 Owner=Rebels Location=COORD[2,2] Racks=SSR-0A-00A,SSR-0A-00B", "SWG=1 PD=3 T=1 S=1 M=3 SR=1"
+                                ,"{0} -- {1}" -f "ID=WSR-01-001 Name=Vulpine_001 Owner=Rebels Location=COORD[2,2] Racks=SSR-0A-00A,SBR-0A-001,BOGUS", "SWG=1 PD=3 T=1 S=1 M=3 SR=1"
                                 ,"{0} -- {1}" -f "ID=SSR-0A-00A Name=Kitsune_00A Owner=Rebels", "SSS=1 PD=2 B=1 S=1"
-#								,"{0} -- {1}" -f "ID=SSR-0A-00B Name=Kitsune_00B Owner=Rebels", "SSS=1 PD=2 B=1 S=1"
+								,"{0} -- {1}" -f "ID=SBR-0A-001 Name=Warrens_00A Owner=Rebels", "SB=1 PD=2 B=1 S=1"
 								)
 )
 	
@@ -98,7 +98,40 @@ function initializeGameObjects()
 		$newShip = loadShip -spec $_ -template $shipTemplate -myBPCostsLookup $BPCostsLookup -myMaxSizeLookup $maxSizeLookup -myPDPerMPLookup $pdPerMPLookup -myHullLookup $hullLookup; 
 		$shipObjects.add($newShip.ID, $newShip); 
 	}
+	
+	Write-Debug " - Replacing racked ship ID lists with racked ship references..."
+	foreach($shipEntry in $shipObjects.GetEnumerator()) {
+		$ship = $shipEntry.Value
+		if($ship.Racks.Count -gt 0)
+		{
+			Write-Debug "    - $($ship.ID) has $($ship.Racks.Count) racked units"
+			foreach ($rackSpot in 0..($ship.Racks.Count-1))
+			{
+				$rackedID              = $ship.Racks[$rackSpot]
+				if( $shipObjects.containsKey($rackedID) )
+				{
+					$rackedUnit            = $shipObjects[$rackedID]
+					$ship.Racks[$rackSpot] = $rackedUnit
+					
+					Write-Debug "        - Replace $rackedID at position $rackSpot with $rackedUnit -- $($ship.Racks[$rackSpot].Name)"
+				}
+				else
+				{
+					Write-Debug "        - No match found for racked ID $rackedID, $($ship.Name) has unusual cargo!"
+				}
+			}
+		}
+	}
 
+	Write-Debug " - Validate all ship objects according to engine rules..."
+	foreach ($shipEntry in $shipObjects.GetEnumerator()) {
+		$ship = $shipEntry.Value
+		$ship["validationNotes"] = validate-GameObject -Game-Object $ship
+		if($ship.validationNotes -eq $null -or $ship.validationNotes.Count -eq 0) 
+		     {$ship.Valid="true" } 
+		else {$ship.Valid="false"}
+	}
+		
     Write-Debug ( "Init Complete! Initialized {0} ships" -f $shipObjects.Count)
     Write-Debug( WriteSummary -shipSet (@($shipTemplate)+$shipObjects.Values) -includeZeroes | Out-String )
 
@@ -112,16 +145,16 @@ function validate-GameObject()
 		[alias ("Game-Object")]
 		$GO 
 	)
-	write-Verbose "Validating $($GO.Name)"
+	write-Verbose "     Validating $($GO.Name)"
 		
 	$GOa = $GO.attrs
 	
 	#Game-Object should only have one _MaxSize/_PDPerMP-defining component (*WG or SB or *SS)
-	write-debug ("Hull uniqueness? -- SWG:{0}, MWG:{1}, LWG:{2}, SB:{3}" -f $GOa.SWG, $GOa.MWG, $GOa.LWG, $GOa.SB)
+	write-debug ("          Hull uniqueness? -- SWG:{0}, MWG:{1}, LWG:{2}, SB:{3}" -f $GOa.SWG, $GOa.MWG, $GOa.LWG, $GOa.SB)
 	if($GOa.SWG + $GOa.MWG + $GOa.LWG + $GOa.SB -gt 1) { "Multiple WarpGen and/or SB components" }
 	
 	#_BPCost should be less than _MaxSize
-	write-debug ("_BPCost within threshold? -- _BPCost:{0}, _MaxSize:{1}" -f $GOa._BPCost, $GOa._MaxSize)
+	write-debug ("          _BPCost within threshold? -- _BPCost:{0}, _MaxSize:{1}" -f $GOa._BPCost, $GOa._MaxSize)
 	if($GOa._BPCost -gt $GOa._MaxSize) { "BP Cost {0} Exceeds Maximum {1} for Hull/Drive Type" -f $GOa._BPCost, $GOa._MaxSize }
 	
 	#Attributes probably shouldn't be negative
@@ -129,12 +162,32 @@ function validate-GameObject()
 	if(($GOa.GetEnumerator() | ? { $_.Value -lt 0 } | Measure-Object).Count -gt 0) {"One or more attrs are negative"}
 	
 	#Hangar space ( SR attr * _Hull attr )cannot be exceeded by hull sizes of attached units.
-	write-debug ("More racked hulls ({0}) than SR attribute ({1})?" -f $GO.Racks.Count, $GOa.SR)
+	write-debug ("          More racked hulls ({0}) than SR attribute ({1})?" -f $GO.Racks.Count, $GOa.SR)
 	if($GOa.SR -lt $GO.Racks.Count) {"Hangar maximum ({0}) exceeded by attached units ({1})" -f $GOa.SR, $GO.Racks.Count}
-
-	# ??? Stricter variant -- SR cannot accommodate a unit bigger than parent's _Hull
-	#write-debug ("Ship carrying a bigger ship?")
-	#if($GOa.SR
+	
+	#Rack entries must map to IDs of other game-objects
+	foreach ($racked in $GO.Racks)
+	{
+		if( $racked.GetType().Name -eq "aString".GetType().Name)
+		{
+			"Rack entry $racked is not a valid game object"
+		}
+	}
+	
+	#SR cannot accommodate a unit bigger than parent's _Hull
+	write-debug ("          Ship carrying a bigger ship?")
+	foreach ($racked in $GO.Racks)
+	{
+		write-debug ("               Host unit {0} vs racked unit {1}: Hull {2} vs {3}" -f $GO.ID, $racked.ID, $GOa._Hull, $racked.attrs._Hull)
+		if($racked.attrs._Hull -gt $GOa._Hull)
+		{
+			"{0} hull size {1} is too small to hold {2} hull size {3} in its racks" -f $GO.ID, $GOa._Hull, $racked.ID, $racked._Hull
+		}
+	}
+	
+	#Unit which is in racks cannot have ITSELF in its racks
+	
+	#Unit cannot be in more than one rack position at the same time
 }
 
 
@@ -163,10 +216,6 @@ function loadShip($spec, $template, $myBPCostsLookup, $myMaxSizeLookup, $myPDPer
 	  $ship.Racks          = if([string]$ship.Racks -eq "") { @() } else { $ship.Racks -split "," }
 	Write-Debug "  -- Found $($ship.Racks.Count) ships in racks -- '$($ship.Racks)'"
 	
-    $ship["validationNotes"] = validate-GameObject -Game-Object $ship
-	if($ship.validationNotes -eq $null -or $ship.validationNotes.Count -eq 0) {$ship.Valid="true"} 
-	else {$ship.Valid="false"}
-	
 	return $ship
 }
 
@@ -183,7 +232,7 @@ function HashFromSpec()
         $myVal=($_ -split "=")[1]
 		write-Debug ("{0} = {1}" -f $myKey, $myVal)
         if($numeric) { $myVal=Invoke-Expression $myVal }
-        else         { $myVal=$myVal -replace "_", " " }
+        else         { $myVal=($myVal -replace "_", " ").Trim() }
         $myHash.add($myKey, $myVal)
     }
     $myHash
@@ -242,7 +291,7 @@ function printShipInfo
 	{ 
 		$RackSummary  = ""
 		$RackSummary += if($s.Racks.Count -gt 0){ "| " } else{ "" }
-		if($s.Racks.Count -gt 0) { $s.Racks | % { $_.Trim() } | % { $RackSummary += ("{0, -21} |`n{1} | " -f $_, (" "*15)) } }
+		if($s.Racks.Count -gt 0) { $s.Racks | % { $_.ID } | % { $RackSummary += ("{0, -21} |`n{1} | " -f $_, (" "*15)) } }
 		$RackSummary += "| "+("-"*21)+" |"
 		""
 		"{0,-16}| {1} |`n{2}{3}" -f "Racks", ("-"*21), (" " * 16), $RackSummary.replace("| | ", "| ")
