@@ -1,25 +1,33 @@
 <# 
 
 Attribute       	Abbr 	Description                                                                                       	BPCost	Damage
-Power Drive     	(PD)	Represents the total effective strength of a ship's engines.                                     	1   	-
-Beams           	(B)    	Represent the ability of a ship to project a beam of destructive energy at a target.            	1    	Strength of beam power +TL
-Screens         	(S) 	represent the ability of a ship to surround itself with a protective energy screen.                      	1   	1 screen power absorbs 1 damage
-Missile Tubes    	(T) 	are used by a ship to launch Missiles. Each Tube may launch one Missile per combat round. 1 -
-Missiles        	(M) 	may be fired through a ship's Tubes at an enemy ship. 1/3 2 per missile + TL
-Systemship Rack 	(SR) 	let a Warpship carry Systemships. 1 -
-Canons (opt)    	(C) 	are used by a ship to launch Shells. Each Cannon may fire either one, two or three Shells per combat round. 1 -
-Shells (opt)    	(SH) 	are fired by Cannons. 1/6 1 per shell + TL
-Armor (opt)     	(A) 	is ablative hull reinforcement. 1/2 1 point of armor absorb 1 damage
-ECM (adv)       	(E) 	cost 1 BP per point of ECM. 1 -
-Hold (adv)      	(H) 	Holds contain BPs and allow Warpships to transport BPs between stars. 1/10 -
-Repair Bay (adv)	(R) 	cost 5 BP. A ship with a Repair Bay may use BPs in Hold or from Star to repair itself or any number of other ships present on the same star hex during the build/repair event. 5 Can not be damaged
-Colony Pod (adv)	(CP) 	Colony Pods are not ship components. 15 Destroyed if enemy ship present and no friendly ships. Warpship carrying it is destroyed 
-Star Base       	(SB) 	are not ship components. They are built on stars with a colony during the Build event. 25 Destroyed if enemy ship present and no friendly ships
-Warp Generator  	---- 	Allows a ship to move from star to star through space and to jump along Warplines.
- Sm Warp Gen (opt) 	(SWG) 	For ships  9 BP or smaller. -  3 - 1 PD makes 1MP
- Md Warp Gen (opt) 	(MWG) 	For ships 45 BP or smaller. -  5 - 2 PD makes 1MP
- Lg Warp Gen (opt) 	(LWG) 	For ships 45 BP and larger. - 10 - 3 PD makes 1MP
+Power Drive     	(PD)	Represents the total effective strength of a ship's engines.                                     	 1   	-
+Beams           	(B)    	Represent the ability of a ship to project a beam of destructive energy at a target.            	 1    	Strength of beam power +TL
+Screens         	(S) 	represent the ability of a ship to surround itself with a protective energy screen.               	 1   	1 screen power absorbs 1 damage
+Missile Tubes    	(T) 	are used by a ship to launch Missiles. Each Tube may launch one Missile per combat round.       	 1    	-
+Missiles        	(M) 	may be fired through a ship's Tubes at an enemy ship.                                            	 1/3 	2 per missile + TL
+Systemship Rack 	(SR) 	let a Warpship carry Systemships.                                                               	 1   	-
+Canons (opt)    	(C) 	are used by a ship to launch Shells. Each Cannon may fire either 1, 2 or 3 Shells per combat round.  1   	-
+Shells (opt)    	(SH) 	are fired by Cannons.                                                                              	 1/6 	1 per shell + TL
+Armor (opt)     	(A) 	is ablative hull reinforcement.                                                                 	 1/2 	1 point of armor absorb 1 damage
+ECM (adv)       	(E) 	Electronic countermeasures.                                                                      	 1   	-
+Hold (adv)      	(H) 	Holds contain BPs and allow Warpships to transport BPs between stars.                           	 1/10  	-
+Repair Bay (adv)	(R) 	May use BPs in Hold or from Star to repair self or others during the build/repair event.        	 5   	Can not be damaged
+Colony Pod (adv)	(CP) 	Establishes a new Colony when deployed.                                                         	15 Destroyed if enemy ship present and no friendly ships.
 
+Sat Hull         	---- 	Hull type. Immobile, can only defend. May base local Systemships.
+  Standard Base   	(SB) 	For bases 800 BP or smaller.                                                                       	25 Destroyed if enemy ship present and no friendly ships
+
+Warp Hull       	---- 	Allows a ship to move from star to star through space and to jump along Warplines.
+ Sm Warp Gen (opt) 	(SWG) 	For ships  12 BP or smaller.                                                                     	 3 - 1 PD makes 1MP
+ Md Warp Gen (opt) 	(MWG) 	For ships  50 BP or smaller.                                                                     	 5 - 2 PD makes 1MP
+ Lg Warp Gen (opt) 	(LWG) 	For ships 200 BP and larger.                                                                     	10 - 3 PD makes 1MP
+
+Systemship Hull  	---- 	Allows a ship to maneuver and attack within a star system.
+ Sm Sys Ship (opt) 	(SWG) 	For ships   5 BP or smaller.                                                                     	 1 - 1 PD makes 1MP
+ Md Sys Ship (opt) 	(MWG) 	For ships  20 BP or smaller.                                                                     	 1 - 2 PD makes 1MP
+ Lg Sys Ship (opt) 	(LWG) 	For ships  80 BP or smaller.                                                                    	 2 - 3 PD makes 1MP
+ Gt Sys Ship (opt) 	(LWG) 	For ships 320 BP or smaller.                                                                    	 4 - 3 PD makes 1MP
  #>
 
 [cmdletBinding()]
