@@ -24,10 +24,11 @@ Warp Hull       	---- 	Allows a ship to move from star to star through space and
  Lg Warp Gen (opt) 	(LWG) 	For ships 200 BP and larger.                                                                     	10 - 3 PD makes 1MP
 
 Systemship Hull  	---- 	Allows a ship to maneuver and attack within a star system.
- Sm Sys Ship (opt) 	(SWG) 	For ships   5 BP or smaller.                                                                     	 1 - 1 PD makes 1MP
- Md Sys Ship (opt) 	(MWG) 	For ships  20 BP or smaller.                                                                     	 1 - 2 PD makes 1MP
- Lg Sys Ship (opt) 	(LWG) 	For ships  80 BP or smaller.                                                                    	 2 - 3 PD makes 1MP
- Gt Sys Ship (opt) 	(LWG) 	For ships 320 BP or smaller.                                                                    	 4 - 3 PD makes 1MP
+ Ft Sys Ship (opt)	(FSS)	For ships W3 or smaller. Must have a basing ship, base or colony at all times.              	 0 - 1 PD makes 2MP
+ Sm Sys Ship (opt) 	(SSS) 	For ships W4 or smaller.                                                                     	 1 - 1 PD makes 1MP
+ Md Sys Ship (opt) 	(MSS) 	For ships W6 or smaller.                                                                     	 1 - 2 PD makes 1MP
+ Lg Sys Ship (opt) 	(LSS) 	For ships W8 or smaller.                                                                    	 2 - 3 PD makes 1MP
+ Gt Sys Ship (opt) 	(GSS) 	For ships W9 or larger.                                                                    	 4 - 3 PD makes 1MP
  #>
 
 [cmdletBinding()]
@@ -46,10 +47,10 @@ param(
 ,   $templateAttrSpec        = "PD=0 B=0 S=0 T=0 M=0 SR=0 C=0 SH=0 A=0 E=0 H=0 R=0 CP=0 SWG=0 MWG=0 LWG=0 SB=0 _BPCost=0 _MaxSize=0 _PDPerMP=0 _Hull=0"
 ,   $templateSpec            = ("{0} -- {1}" -f $templateInfoSpec, $templateAttrSpec)
 ,   $shipSpecs               = @(
-                                 "{0} -- {1}" -f "ID=WSI-01-001 Name=Gladius_001 Owner=Empire Location=COORD[1,1]", "SWG=1 MWG=1 PD=4 B=2 S=1"
-                                ,"{0} -- {1}" -f "ID=WSR-01-001 Name=Vulpine_001 Owner=Rebels Location=COORD[2,2] Racks=SSR-0A-00A,SBR-0A-001,BOGUS", "SWG=1 PD=3 T=1 S=1 M=3 SR=1"
-                                ,"{0} -- {1}" -f "ID=SSR-0A-00A Name=Kitsune_00A Owner=Rebels", "SSS=1 PD=2 B=1 S=1"
-								,"{0} -- {1}" -f "ID=SBR-0A-001 Name=Warrens_00A Owner=Rebels", "SB=1 PD=2 B=1 S=1"
+                                 "{0} -- {1}" -f "ID=WSI-01-001 Name=Gladius_001 Owner=Empire Location=COORD[1,1] CC=2x2"                                  , "SWG=1 MWG=1 PD=4 B=2 S=1"
+                                ,"{0} -- {1}" -f "ID=WSR-01-001 Name=Vulpine_001 Owner=Rebels Location=COORD[2,2] CC=2x2 Racks=SSR-0A-00A,SBR-0A-001,BOGUS", "SWG=1 PD=3 T=1 S=1 M=3 SR=1"
+                                ,"{0} -- {1}" -f "ID=SSR-0A-00A Name=Kitsune_00A Owner=Rebels Location=Racked CC=2x2"                                      , "SSS=1 PD=2 B=1 S=1"
+								,"{0} -- {1}" -f "ID=SBR-0A-001 Name=Warrens_00A Owner=Rebels Location=Racked CC=2x2"                                      , "SB=1 PD=2 B=1 S=1"
 								)
 )
 	
