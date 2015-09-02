@@ -54,7 +54,7 @@ param(
 ,   $templateSpec           = ("{0} -- {1}" -f $templateInfoSpec, $templateAttrSpec)
 ,   $shipSpecs              = @(
                                  "{0} -- {1}" -f "ID=IWS-01-001 Name=Gladius_001 Owner=Empire Location=COORD[1,1] TL=2", "SWG=1 MWG=1 PD=4 B=2 S=1"
-								,"{0} -- {1}" -f "ID=ISS-0A-00A Name=Portero_001 Owner=Empire Location=COORD[1,1] TL=1 Cargo=2xBP,Marine_Guards(5)", "SSS=1 PD=6 H=10 S=2" 
+								,"{0} -- {1}" -f "ID=ISS-0A-00A Name=Portero_001 Owner=Empire Location=COORD[1,1] TL=1 Cargo=12xBP,Space_Marine_Terminators(5)", "SSS=1 PD=6 H=10 S=2" 
                                 ,"{0} -- {1}" -f "ID=RWS-01-001 Name=Vulpine_001 Owner=Rebels Location=COORD[2,2] TL=2 Racks=RSS-0A-00A,RSB-0A-001,BOGUS", "SWG=1 PD=2 T=1 S=1 M=3 SR=1"
                                 ,"{0} -- {1}" -f "ID=RSS-0A-00A Name=Kitsune_00A Owner=Rebels Location=Racked TL=2", "SSS=1 PD=5 B=4 S=1"
 								,"{0} -- {1}" -f "ID=RSB-0A-001 Name=Warrens_00A Owner=Rebels Location=Racked", "SSB=1 PD=2 B=1 S=1"
@@ -233,7 +233,11 @@ function validate-GameObject()
 	#Unit cannot be in more than one rack position at the same time
 	
 	#Unit cannot have more cargo than its H attribute
-	
+	write-debug ("          Ship carrying too much cargo?")
+	if($GOa.HUsed -gt $GOa.H)
+	{
+		("{0} H:{1} is too small to hold total cargo size {2}" -f $GO.ID, $GOa.H, $GOa.HUsed)
+	}
 }
 
 
@@ -405,56 +409,81 @@ function printShipInfo
 		[switch] $includeZeroes
 	); 
 	
+	$infoEntryLeftSegmentLen  = 16
+	$lineEntryLeftSegmentLen  = 19
+	$lineEntryRightSegmentLen = 4 
+	$lineEntryFullLen         = $lineEntryLeftSegmentLen + $lineEntryRightSegmentLen + 1
+	$lineEntryFormat = "{0,-$lineEntryLeftSegmentLen}:{1,$lineEntryRightSegmentLen}"
+	
 	#Excluded info fields -- fields which either need additional special handling, 
 	$exclInfoFields = ("attrs", "validationNotes", "Cargo", "Valid", "Racks")
 	#Ordered info fields
 	$orderedInfoFields = ("ID", "Name", "Owner", "Universe") 
-	$orderedInfoFields | % { "{0,-15} | {1}" -f $_, $s["$_"] }
+	$orderedInfoFields | % { "{0,-$infoEntryLeftSegmentLen}| {1}" -f $_, $s["$_"] }
+	
 	#Unordered info fields - just display alphabetically
     $s.GetEnumerator() | sort name | foreach { 
 		if(-not $orderedInfoFields.Contains($_.Key) -and -not $exclInfoFields.Contains($_.Key)) { 
-			"{0,-15} | {1}" -f $_.Key, $_.Value 
+			"{0,-$infoEntryLeftSegmentLen}| {1}" -f $_.Key, $_.Value 
 		} 
 	} 
+	
 	#Complex fields
 	""
-    $AttrSummary  = "| "
-	$s.attrs.GetEnumerator() | sort name | ? { ($_.Value -ne 0) -or $includeZeroes -eq $true } | % { $AttrSummary += ("{0,-12}:{1,11} |`n{2} | " -f $_.Key, $_.Value, (" "*15))  }
-	$AttrSummary += ("-"*24)+" |"
-    "{0,-16}| {1} |`n{2}{3}" -f "Attributes", ("-"*24), (" " * 16), $AttrSummary
-	if($s.Racks.Count -gt 0 -or $includeZeroes)
-	{ 
-		$RackSummary  = ""
-		$RackSummary += if($s.Racks.Count -gt 0){ "| " } else{ "" }
-		if($s.Racks.Count -gt 0) { $s.Racks | % { ($_.ID, $_ -ne $null )[0] } | % { $RackSummary += ("{0, -24} |`n{1} | " -f $_, (" "*15)) } }
-		$RackSummary += "| "+("-"*24)+" |"
-		""
-		"{0,-16}| {1} |`n{2}{3}" -f "Racks", ("-"*24), (" " * 16), $RackSummary.replace("| | ", "| ")
+	#region Attributes
+	if($s.Attrs.Count -gt 0 -or $includeZeroes)
+	{
+		$AttrSummary  = "| "
+		$s.attrs.GetEnumerator() | sort name | ? { ($_.Value -ne 0) -or $includeZeroes -eq $true } | % { $AttrSummary += ( ($lineEntryFormat+" |`n{2}| ") -f $_.Key, $_.Value, (" "*$infoEntryLeftSegmentLen))  }
+		$AttrSummary += ("-"*$lineEntryFullLen)+" |"
+		"{0,-16}| {1} |`n{2}{3}" -f "Attributes", ("-"*$lineEntryFullLen), (" " * $infoEntryLeftSegmentLen), $AttrSummary
+		#endregion
+		
+		#region Racks
+		if($s.Racks.Count -gt 0 -or $includeZeroes)
+		{ 
+			$RackSummary  = ""
+			$RackSummary += if($s.Racks.Count -gt 0){ "| " } else{ "" }
+			if($s.Racks.Count -gt 0) { $s.Racks | % { ($_.ID, $_ -ne $null )[0] } | % { $RackSummary += ("{0, -$lineEntryFullLen} |`n{1}| " -f $_, (" "*$infoEntryLeftSegmentLen)) } }
+			$RackSummary += "| "+("-"*$lineEntryFullLen)+" |"
+			""
+			"{0,-16}| {1} |`n{2}{3}" -f "Racks", ("-"*$lineEntryFullLen), (" " * $infoEntryLeftSegmentLen), $RackSummary.replace("| | ", "| ")
+		}
 	}
+	#endregion
+	
+	#region Cargo
 	if($s.Cargo.Count -gt 0 -or $includeZeroes)
 	{ 
 		$CargoSummary  = ""
 		$CargoSummary += if($s.Cargo.Count -gt 0){ "| " } else{ "" }
-		if($s.Cargo.Count -gt 0) 
+		foreach ($cI in $s.Cargo)
 		{ 
-			foreach ($cI in $s.Cargo)
-			{ 
-				$itemTxtRuler = "-"*10
-				$itemTxt = $cI.Item
-				if($itemTxt.length -gt $itemTxtRuler.length)
-				{
-					$itemTxt = $itemTxt.substring(0, $itemTxtRuler.length)+"..."
-				}
-				$lineEntry = "{0,3} x {1,-13} ({2,2})" -f $cI.Qty, $itemTxt, $cI.Size
-				$CargoSummary += ("{0, -24} |`n{1} | " -f $lineEntry, (" "*15))
+			$itemTxt  = $cI.Item
+			
+			if($cI.Qty -gt 1)
+			{
+					$itemTxt = $cI.Qty + "x" + $itemTxt
 			}
-		$CargoSummary += "| "+("-"*24)+" |"
-		""
-		"{0,-16}| {1} |`n{2}{3}" -f ("Cargo({0}/{1})" -f $s.attrs.HUsed, $s.attrs.H), ("-"*24), (" " * 16), $CargoSummary.replace("| | ", "| ")
+			
+			if($itemTxt.length -gt $lineEntryLeftSegmentLen)
+			{
+				$itemTxt = $itemTxt.substring(0, $lineEntryLeftSegmentLen-3)+"..."
+			}
+			
+			$lineEntry = $lineEntryFormat -f $itemTxt, ([decimal]$cI.Size*[decimal]$cI.Qty)
+			
+			$CargoSummary += ("{0, -$lineEntryFullLen} |`n{1}| " -f $lineEntry, (" "*$infoEntryLeftSegmentLen))
 		}
+		$CargoSummary += "| "+("-"*$lineEntryFullLen)+" |"
+		""
+		"{0,-$infoEntryLeftSegmentLen}| {1} |`n{2}{3}" -f ("Cargo({0}/{1})" -f $s.attrs.HUsed, $s.attrs.H), ("-"*$lineEntryFullLen), (" " * $infoEntryLeftSegmentLen), $CargoSummary.replace("| | ", "| ")
 	}
+	#endregion
 	
+	#region ValidationLabel
 	if($s.Valid -eq "false") { "{0}:`n  - {1}"   -f "INVALID", ($s.validationNotes -join "`n  - ") }
+	#endregion
 }
 
 function WriteSummary()
