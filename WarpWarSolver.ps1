@@ -54,8 +54,8 @@ param(
 ,   $templateSpec           = ("{0} -- {1}" -f $templateInfoSpec, $templateAttrSpec)
 ,   $shipSpecs              = @(
                                  "{0} -- {1}" -f "ID=IWS-01-001 Name=Gladius_001 Owner=Empire Location=COORD[1,1] TL=2", "SWG=1 MWG=1 PD=4 B=2 S=1"
-								,"{0} -- {1}" -f "ID=ISS-0A-00A Name=Portero_001 Owner=Empire Location=COORD[1,1] TL=1 Cargo=BP(5),Marines(5)", "SSS=1 PD=6 H=10 S=2" 
-                                ,"{0} -- {1}" -f "ID=RWS-01-001 Name=Vulpine_001 Owner=Rebels Location=COORD[2,2] TL=2 Racks=SSR-0A-00A,SBR-0A-001,BOGUS", "SWG=1 PD=2 T=1 S=1 M=3 SR=1"
+								,"{0} -- {1}" -f "ID=ISS-0A-00A Name=Portero_001 Owner=Empire Location=COORD[1,1] TL=1 Cargo=2xBP,Marine_Guards(5)", "SSS=1 PD=6 H=10 S=2" 
+                                ,"{0} -- {1}" -f "ID=RWS-01-001 Name=Vulpine_001 Owner=Rebels Location=COORD[2,2] TL=2 Racks=RSS-0A-00A,RSB-0A-001,BOGUS", "SWG=1 PD=2 T=1 S=1 M=3 SR=1"
                                 ,"{0} -- {1}" -f "ID=RSS-0A-00A Name=Kitsune_00A Owner=Rebels Location=Racked TL=2", "SSS=1 PD=5 B=4 S=1"
 								,"{0} -- {1}" -f "ID=RSB-0A-001 Name=Warrens_00A Owner=Rebels Location=Racked", "SSB=1 PD=2 B=1 S=1"
 							)
@@ -78,7 +78,7 @@ function main()
 	Write-Verbose "Game objects initialized."
 	
 	Write-Verbose "Starting ships' state:"
-    Write-Host ( WriteSummary -shipSet $shipObjects.Values | Out-String)
+    Write-Host ( (WriteSummary -shipSet $shipObjects.Values) -replace "_", " " | Out-String)
 	
 	Write-Host "Begin combat!"
 	1..$const_combat_max_rounds | foreach {
@@ -135,6 +135,7 @@ function initializeGameObjects()
     
     Write-Debug " - Loading real ships..."
     $shipSpecs | foreach { 
+		Write-Debug "`n`n"
 		$newShip = loadShip -spec $_ -template $shipTemplate -myBPCostsLookup $BPCostsLookup -myMaxSizeLookup $maxSizeLookup -myPDPerMPLookup $pdPerMPLookup -myHullLookup $hullLookup; 
 		$shipObjects.add($newShip.ID, $newShip); 
 	}
@@ -230,6 +231,9 @@ function validate-GameObject()
 	#Unit which is in racks cannot have ITSELF in its racks
 	
 	#Unit cannot be in more than one rack position at the same time
+	
+	#Unit cannot have more cargo than its H attribute
+	
 }
 
 
@@ -259,6 +263,8 @@ function loadShip($spec, $template, $myBPCostsLookup, $myMaxSizeLookup, $myPDPer
 	Write-Debug "  -- Found $($ship.Racks.Count) ships in racks -- '$($ship.Racks)'"
 	Write-Debug "  -- Instantiate Cargo content list ['$($ship.Cargo)']"
 	  $ship.Cargo          = if([string]$ship.Cargo -eq "") { @() } else { $ship.Cargo -split "," }
+	  $ship.Cargo          = Convert-CargoToList -CargoItems $ship.Cargo
+	  $ship.attrs.HUsed    = Calculate-CargoSum  -CargoItems $ship.Cargo
 	Write-Debug "  -- Found $($ship.Cargo.Count) cargo entries -- '$($ship.Cargo)'"
 	
 	return $ship
@@ -277,7 +283,7 @@ function HashFromSpec()
         $myVal=($_ -split "=")[1]
 		write-Debug ("{0} = {1}" -f $myKey, $myVal)
         if($numeric) { $myVal=Invoke-Expression $myVal }
-        else         { $myVal=($myVal -replace "_", " ").Trim() }
+        else         { $myVal=$myVal.Trim() }
         $myHash.add($myKey, $myVal)
     }
     $myHash
@@ -326,6 +332,68 @@ function calculate-MaxSize()
 		$mS
 	}
 }
+
+function convert-CargoToList()
+{
+	[cmdletBinding()]
+	param(
+		$cargoItems
+	)
+	
+	$stupidRegex = "((?<qty>\d*)\s*x\s*)?(?<item>\w*)(\s*\(\s*(?<size>\d*)\s*\))?"
+	
+	Write-Debug "CONVERT CARGO"
+	$cargoList = @()
+	foreach ($cI in $cargoItems) {
+		Write-Debug "     CARGO $cI"
+		$result = $cI -match $stupidRegex; 		
+		if($result -eq $true)
+		{
+			$cH = @{}
+			$cH.Item = ($($matches["item"]), "???" -ne $null)[0]
+			$cH.Size = ($($matches["size"]), "1"   -ne $null)[0]
+			$cH.Qty  = ($($matches["qty"]) , "1"   -ne $null)[0]
+			
+			write-Debug "         Item : ""$($cH.Item)"""
+			write-Debug "         Size : ""$($cH.Size)"""
+			write-Debug "         Qty  : ""$($cH.Qty )"""
+			
+			$cargoList += $cH
+		}
+		else
+		{
+			Write-Debug "         REGEX no match for $cI"
+		}
+	}
+	$cargoList
+}
+
+function calculate-CargoSum()
+{
+	[cmdletBinding()]
+	param(
+		$cargoItems
+	)
+	
+	Write-Debug "SUM CARGO"
+	$cargoSum = 0
+	foreach ($cI in $cargoItems) {
+		$cIItem = $cI.Item
+		$cIQty  = [Decimal] $cI.Qty
+		$cISize = [Decimal] $cI.Size
+
+		Write-Debug "     CARGO $cIItem - $cIQty x $cISize"
+		if($cIQty -gt 0 -and $cISize -gt 0)
+		{
+			$cargoSum += $cIQty * $cISize
+		}
+		else
+		{
+			Write-Debug "         Qty or Size for $cIItem invalid"
+		}
+	}
+	$cargoSum
+}
 #endregion
 
 #region Print Functions
@@ -338,7 +406,7 @@ function printShipInfo
 	); 
 	
 	#Excluded info fields -- fields which either need additional special handling, 
-	$exclInfoFields = ("attrs", "validationNotes", "Valid", "Racks")
+	$exclInfoFields = ("attrs", "validationNotes", "Cargo", "Valid", "Racks")
 	#Ordered info fields
 	$orderedInfoFields = ("ID", "Name", "Owner", "Universe") 
 	$orderedInfoFields | % { "{0,-15} | {1}" -f $_, $s["$_"] }
@@ -351,26 +419,39 @@ function printShipInfo
 	#Complex fields
 	""
     $AttrSummary  = "| "
-	$s.attrs.GetEnumerator() | sort name | ? { ($_.Value -ne 0) -or $includeZeroes -eq $true } | % { $AttrSummary += ("{0,-10}:{1,10} |`n{2} | " -f $_.Key, $_.Value, (" "*15))  }
-	$AttrSummary += ("-"*21)+" |"
-    "{0,-16}| {1} |`n{2}{3}" -f "Attributes", ("-"*21), (" " * 16), $AttrSummary
+	$s.attrs.GetEnumerator() | sort name | ? { ($_.Value -ne 0) -or $includeZeroes -eq $true } | % { $AttrSummary += ("{0,-12}:{1,11} |`n{2} | " -f $_.Key, $_.Value, (" "*15))  }
+	$AttrSummary += ("-"*24)+" |"
+    "{0,-16}| {1} |`n{2}{3}" -f "Attributes", ("-"*24), (" " * 16), $AttrSummary
 	if($s.Racks.Count -gt 0 -or $includeZeroes)
 	{ 
 		$RackSummary  = ""
 		$RackSummary += if($s.Racks.Count -gt 0){ "| " } else{ "" }
-		if($s.Racks.Count -gt 0) { $s.Racks | % { ($_.ID, $_ -ne $null )[0] } | % { $RackSummary += ("{0, -21} |`n{1} | " -f $_, (" "*15)) } }
-		$RackSummary += "| "+("-"*21)+" |"
+		if($s.Racks.Count -gt 0) { $s.Racks | % { ($_.ID, $_ -ne $null )[0] } | % { $RackSummary += ("{0, -24} |`n{1} | " -f $_, (" "*15)) } }
+		$RackSummary += "| "+("-"*24)+" |"
 		""
-		"{0,-16}| {1} |`n{2}{3}" -f "Racks", ("-"*21), (" " * 16), $RackSummary.replace("| | ", "| ")
+		"{0,-16}| {1} |`n{2}{3}" -f "Racks", ("-"*24), (" " * 16), $RackSummary.replace("| | ", "| ")
 	}
 	if($s.Cargo.Count -gt 0 -or $includeZeroes)
 	{ 
 		$CargoSummary  = ""
 		$CargoSummary += if($s.Cargo.Count -gt 0){ "| " } else{ "" }
-		if($s.Cargo.Count -gt 0) { $s.Cargo | % { ($_.ID, $_ -ne $null )[0] } | % { $CargoSummary += ("{0, -21} |`n{1} | " -f $_, (" "*15)) } }
-		$CargoSummary += "| "+("-"*21)+" |"
+		if($s.Cargo.Count -gt 0) 
+		{ 
+			foreach ($cI in $s.Cargo)
+			{ 
+				$itemTxtRuler = "-"*10
+				$itemTxt = $cI.Item
+				if($itemTxt.length -gt $itemTxtRuler.length)
+				{
+					$itemTxt = $itemTxt.substring(0, $itemTxtRuler.length)+"..."
+				}
+				$lineEntry = "{0,3} x {1,-13} ({2,2})" -f $cI.Qty, $itemTxt, $cI.Size
+				$CargoSummary += ("{0, -24} |`n{1} | " -f $lineEntry, (" "*15))
+			}
+		$CargoSummary += "| "+("-"*24)+" |"
 		""
-		"{0,-16}| {1} |`n{2}{3}" -f ("Cargo("+$s.Cargo.Count+")"), ("-"*21), (" " * 16), $CargoSummary.replace("| | ", "| ")
+		"{0,-16}| {1} |`n{2}{3}" -f ("Cargo({0}/{1})" -f $s.attrs.HUsed, $s.attrs.H), ("-"*24), (" " * 16), $CargoSummary.replace("| | ", "| ")
+		}
 	}
 	
 	if($s.Valid -eq "false") { "{0}:`n  - {1}"   -f "INVALID", ($s.validationNotes -join "`n  - ") }
