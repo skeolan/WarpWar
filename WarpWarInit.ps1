@@ -89,45 +89,7 @@ function summarize-ComponentData()
 	$hull = $GameData.ComponentSpecs | ? { $_.CompType -eq "Hull"       }
 	$bays = $GameData.ComponentSpecs | ? { $_.CompType -eq "Carry"      }
 	$util = $GameData.ComponentSpecs | ? { $_.CompType -eq "Utility" -or $_.CompType -eq  "Power" }
-<# 	""
-	"WEAPONS"
-	foreach ($comp in $weps)
-	{
-		print-ComponentInfo -comp $comp 
-	}
 
-	"AMMO"
-	foreach ($comp in $ammo)
-	{
-		print-ComponentInfo -comp $comp
-	}
-
-	"DEFENSES"
-	foreach ($comp in $defs)
-	{
-		print-ComponentInfo -comp $comp
-	}
-
-	"HULL"
-	foreach ($comp in $hull)
-	{
-		print-ComponentInfo -comp $comp
-	}
-
-	"CARRY"
-	foreach ($comp in $bays)
-	{
-		print-ComponentInfo -comp $comp
-	}
-
-	"POWER/UTILITY"
-	foreach ($comp in $util)
-	{
-		print-ComponentInfo -comp $comp
-	}
-	
-	""
-	 #>
 	@($weps, $ammo, $defs, $hull, $bays, $util) | % { $_ | format-table -autosize -wrap -property @{n='LongName'; e={$_.Info.LongName}; Width=15 }, * }
 }
 
