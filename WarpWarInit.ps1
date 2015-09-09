@@ -1,3 +1,7 @@
+#example invocation:
+#     cls; $cS = .\WarpWarInit.ps1 -Verbose; $cS.ComponentSpecs | format-table -property * -wrap -autosize
+
+
 [cmdletBinding()]
 param(
 
@@ -9,34 +13,34 @@ $const_hull_damage_value = 1 #0 for "vanilla" rules; 1+ makes larger ships tough
 $const_TL_add_to_BPLimit = 1 #0 for "vanilla" rules; 1+ alters the BP-by-size calculation from the static max-size spec to (sqrt(MaxSize) * (sqrt(maxSize) + TL -1))
 $const_TL_add_to_damage  = 0 #1 for "vanilla" rules; 0 compensates for the increased damage capability that comes from having more BP for higher-TL ships.
 
-#Initial Configuration.
+#Initial Configuration. PD gets all stats explicitly to help table-formatting.
 $GameConfig=@"
 {
 	"ComponentSpecs": [
-		  { "Name":"PD" , "BPCost": 1    , "Power"  : 1                                   , "CompType":"Power"      , "Info" : { "LongName":"Power/Drive"                , "Description":"Total effective strength of a ship's engines."                                        } }
-		, { "Name":"B"  , "BPCost": 1    , "Damage" : 1, "RoF":1                          , "CompType":"Weapon"     , "Info" : { "LongName":"Beams"                      , "Description":"Project a beam of destructive energy at a target."                                    } }
-		, { "Name":"C"  , "BPCost": 1                  , "RoF":3                          , "CompType":"Weapon"     , "Info" : { "LongName":"Cannons"                    , "Description":"Launch Shells. Each Cannon may fire either 1, 2 or 3 Shells per combat round."        } }
-		, { "Name":"T"  , "BPCost": 1                  , "RoF":1                          , "CompType":"Weapon"     , "Info" : { "LongName":"Tubes"                      , "Description":"Launch Missiles. Each Tube may launch one Missile per combat round."                  } }
-		, { "Name":"SH" , "BPCost": 0.167, "Damage" : 1                                   , "CompType":"Ammunition" , "Info" : { "LongName":"Shells"                     , "Description":"Fired by Cannons."                                                                    } }
-		, { "Name":"M"  , "BPCost": 0.333, "Damage" : 2                                   , "CompType":"Ammunition" , "Info" : { "LongName":"Missiles"                   , "Description":"Fired by Tubes."                                                                      } }
-		, { "Name":"S"  , "BPCost": 1    , "Defense": 1                                   , "CompType":"Defense"    , "Info" : { "LongName":"Screens"                    , "Description":"Ability of a ship to surround itself with a protective energy screen."                } }
-		, { "Name":"A"  , "BPCost": 0.5  , "Defense": 0                                   , "CompType":"Defense"    , "Info" : { "LongName":"Armor"                      , "Description":"Ablative hull reinforcement."                                                         } }
-		, { "Name":"E"  , "BPCost": 1    , "Defense": 0, "ECM"    : 1                     , "CompType":"Defense"    , "Info" : { "LongName":"ECM"                        , "Description":"Electronic countermeasures. ECM points alter attacking Missiles' effective Drive."    } }
-		, { "Name":"SR" , "BPCost": 1                                                     , "CompType":"Carry"      , "Info" : { "LongName":"Systemship Rack"            , "Description":"Let a Warpship carry Systemships."                                                    } }
-		, { "Name":"H"  , "BPCost": 0.1                                                   , "CompType":"Carry"      , "Info" : { "LongName":"Hold"                       , "Description":"Contain cargo and/or BPs."                                                            } }
-		, { "Name":"R"  , "BPCost": 5                                                     , "CompType":"Utility"    , "Info" : { "LongName":"Repair"                     , "Description":"Use BPs in Hold or from Star to repair self or others during the build/repair event." } }
-		, { "Name":"CP" , "BPCost":15    , "Hull": 4, "maxSize":15                        , "CompType":"Hull"       , "Info" : { "LongName":"Colony Pod"                 , "Description":"Establishes a new Colony when deployed."                                              } }
-		, { "Name":"SSB", "BPCost": 7    , "Hull": 8, "maxSize":4                         , "CompType":"Hull"       , "Info" : { "LongName":"Small Starbase Hull"        , "Description":"For bases BP 64(H 8) or smaller. (Defsat)"                                            } }
-		, { "Name":"MSB", "BPCost":13    , "Hull":12, "maxSize":4                         , "CompType":"Hull"       , "Info" : { "LongName":"Medium Starbase Hull"       , "Description":"For bases BP144(H12) or smaller. (Station)"                                           } }
-		, { "Name":"LSB", "BPCost":25    , "Hull":20, "maxSize":4                         , "CompType":"Hull"       , "Info" : { "LongName":"Large Starbase Hull"        , "Description":"For bases BP400(H20) or smaller. (Fortress)"                                          } }
-		, { "Name":"SWG", "BPCost": 3    , "Hull": 3, "maxSize":4 , "PDPerMP":1           , "CompType":"Hull"       , "Info" : { "LongName":"Small Warp Generator Hull"  , "Description":"For ships BP  9(H 3) or smaller. (Escort)"                                            } }
-		, { "Name":"MWG", "BPCost": 6    , "Hull": 6, "maxSize":4 , "PDPerMP":2           , "CompType":"Hull"       , "Info" : { "LongName":"Medium Warp Generator Hull" , "Description":"For ships BP 36(H 6) or smaller. (Cruiser)"                                           } }
-		, { "Name":"LWG", "BPCost": 9    , "Hull": 8, "maxSize":4 , "PDPerMP":3           , "CompType":"Hull"       , "Info" : { "LongName":"Large Warp Generator Hull"  , "Description":"For ships BP 64(H 8) or smaller. (Capital)"                                           } }
-		, { "Name":"GWG", "BPCost":12    , "Hull":10, "maxSize":4 , "PDPerMP":3           , "CompType":"Hull"       , "Info" : { "LongName":"Giant Warp Generator Hull"  , "Description":"For ships BP100(H10) or smaller. (Supercapital)"                                      } }
-		, { "Name":"SSS", "BPCost": 0    , "Hull": 3, "maxSize":4                         , "CompType":"Hull"       , "Info" : { "LongName":"Small System Ship Hull"     , "Description":"For ships BP  9(H 3) or smaller. (Fighter/Escort)"                                    } }
-		, { "Name":"MSS", "BPCost": 2    , "Hull": 6, "maxSize":4                         , "CompType":"Hull"       , "Info" : { "LongName":"Medium System Ship Hull"    , "Description":"For ships BP 36(H 6) or smaller. (Cruiser)"                                           } }
-		, { "Name":"LSS", "BPCost": 4    , "Hull": 8, "maxSize":4                         , "CompType":"Hull"       , "Info" : { "LongName":"Large System Ship Hull"     , "Description":"For ships BP 64(H 8) or smaller. (Capital)"                                           } }
-		, { "Name":"GSS", "BPCost": 6    , "Hull":10, "maxSize":4                         , "CompType":"Hull"       , "Info" : { "LongName":"Giant System Ship Hull"     , "Description":"For ships BP100(H10) or smaller. (Supercapital)"                                      } }
+		  { "Name":"PD" , "BPCost": 1    , "Damage" : 0, "RoF":0, "Defense": 0, "ECM":0, "Hull":0, "maxSize":  0, "PDPerMP":0, "Power":1, "CompType":"Power"      , "Info" : { "LongName":"Power/Drive"                , "Description":"Total effective strength of a ship's engines."                                        } }
+		, { "Name":"B"  , "BPCost": 1    , "Damage" : 1, "RoF":1                                                                        , "CompType":"Weapon"     , "Info" : { "LongName":"Beams"                      , "Description":"Project a beam of destructive energy at a target."                                    } }
+		, { "Name":"C"  , "BPCost": 1                  , "RoF":3                                                                        , "CompType":"Weapon"     , "Info" : { "LongName":"Cannons"                    , "Description":"Launch Shells. Each Cannon may fire either 1, 2 or 3 Shells per combat round."        } }
+		, { "Name":"T"  , "BPCost": 1                  , "RoF":1                                                                        , "CompType":"Weapon"     , "Info" : { "LongName":"Tubes"                      , "Description":"Launch Missiles. Each Tube may launch one Missile per combat round."                  } }
+		, { "Name":"SH" , "BPCost": 0.167, "Damage" : 1                                                                                 , "CompType":"Ammunition" , "Info" : { "LongName":"Shells"                     , "Description":"Fired by Cannons."                                                                    } }
+		, { "Name":"M"  , "BPCost": 0.333, "Damage" : 2                                                                                 , "CompType":"Ammunition" , "Info" : { "LongName":"Missiles"                   , "Description":"Fired by Tubes."                                                                      } }
+		, { "Name":"S"  , "BPCost": 1                           , "Defense": 1                                                          , "CompType":"Defense"    , "Info" : { "LongName":"Screens"                    , "Description":"Ability of a ship to surround itself with a protective energy screen."                } }
+		, { "Name":"A"  , "BPCost": 0.5                         , "Defense": 0                                                          , "CompType":"Defense"    , "Info" : { "LongName":"Armor"                      , "Description":"Ablative hull reinforcement."                                                         } }
+		, { "Name":"E"  , "BPCost": 1                           , "Defense": 0, "ECM":1                                                 , "CompType":"Defense"    , "Info" : { "LongName":"ECM"                        , "Description":"Electronic countermeasures. ECM points alter attacking Missiles' effective Drive."    } }
+		, { "Name":"SR" , "BPCost": 1                                                                                                   , "CompType":"Carry"      , "Info" : { "LongName":"Systemship Rack"            , "Description":"Let a Warpship carry Systemships."                                                    } }
+		, { "Name":"H"  , "BPCost": 0.1                                                                                                 , "CompType":"Carry"      , "Info" : { "LongName":"Hold"                       , "Description":"Contain cargo and/or BPs."                                                            } }
+		, { "Name":"R"  , "BPCost": 5                                                                                                   , "CompType":"Utility"    , "Info" : { "LongName":"Repair"                     , "Description":"Use BPs in Hold or from Star to repair self or others during the build/repair event." } }
+		, { "Name":"CP" , "BPCost":15                                                                                                   , "CompType":"Utility"    , "Info" : { "LongName":"Colony Pod"                 , "Description":"Establishes a new Colony when deployed."                                              } }
+		, { "Name":"SSB", "BPCost": 7                                                  , "Hull": 8, "maxSize": 64                       , "CompType":"Hull"       , "Info" : { "LongName":"Small Starbase Hull"        , "Description":"For bases BP 64(H 8) or smaller. (Defsat)"                                            } }
+		, { "Name":"MSB", "BPCost":13                                                  , "Hull":12, "maxSize":144                       , "CompType":"Hull"       , "Info" : { "LongName":"Medium Starbase Hull"       , "Description":"For bases BP144(H12) or smaller. (Station)"                                           } }
+		, { "Name":"LSB", "BPCost":25                                                  , "Hull":20, "maxSize":400                       , "CompType":"Hull"       , "Info" : { "LongName":"Large Starbase Hull"        , "Description":"For bases BP400(H20) or smaller. (Fortress)"                                          } }
+		, { "Name":"SWG", "BPCost": 3                                                  , "Hull": 3, "maxSize":  9, "PDPerMP":1          , "CompType":"Hull"       , "Info" : { "LongName":"Small Warp Generator Hull"  , "Description":"For ships BP  9(H 3) or smaller. (Escort)"                                            } }
+		, { "Name":"MWG", "BPCost": 6                                                  , "Hull": 6, "maxSize": 36, "PDPerMP":2          , "CompType":"Hull"       , "Info" : { "LongName":"Medium Warp Generator Hull" , "Description":"For ships BP 36(H 6) or smaller. (Cruiser)"                                           } }
+		, { "Name":"LWG", "BPCost": 9                                                  , "Hull": 8, "maxSize": 64, "PDPerMP":3          , "CompType":"Hull"       , "Info" : { "LongName":"Large Warp Generator Hull"  , "Description":"For ships BP 64(H 8) or smaller. (Capital)"                                           } }
+		, { "Name":"GWG", "BPCost":12                                                  , "Hull":10, "maxSize":100, "PDPerMP":3          , "CompType":"Hull"       , "Info" : { "LongName":"Giant Warp Generator Hull"  , "Description":"For ships BP100(H10) or smaller. (Supercapital)"                                      } }
+		, { "Name":"SSS", "BPCost": 0                                                  , "Hull": 3, "maxSize":  9                       , "CompType":"Hull"       , "Info" : { "LongName":"Small System Ship Hull"     , "Description":"For ships BP  9(H 3) or smaller. (Fighter/Escort)"                                    } }
+		, { "Name":"MSS", "BPCost": 2                                                  , "Hull": 6, "maxSize": 36                       , "CompType":"Hull"       , "Info" : { "LongName":"Medium System Ship Hull"    , "Description":"For ships BP 36(H 6) or smaller. (Cruiser)"                                           } }
+		, { "Name":"LSS", "BPCost": 4                                                  , "Hull": 8, "maxSize": 64                       , "CompType":"Hull"       , "Info" : { "LongName":"Large System Ship Hull"     , "Description":"For ships BP 64(H 8) or smaller. (Capital)"                                           } }
+		, { "Name":"GSS", "BPCost": 6                                                  , "Hull":10, "maxSize":100                       , "CompType":"Hull"       , "Info" : { "LongName":"Giant System Ship Hull"     , "Description":"For ships BP100(H10) or smaller. (Supercapital)"                                      } }
 	]
 }
 "@
@@ -90,7 +94,7 @@ function summarize-ComponentData()
 	$bays = $GameData.ComponentSpecs | ? { $_.CompType -eq "Carry"      }
 	$util = $GameData.ComponentSpecs | ? { $_.CompType -eq "Utility" -or $_.CompType -eq  "Power" }
 
-	@($weps, $ammo, $defs, $hull, $bays, $util) | % { $_ | format-table -autosize -wrap -property @{n='LongName'; e={$_.Info.LongName}; Width=15 }, * }
+	@($util, $weps, $ammo, $defs, $hull, $bays) | format-table -autosize -wrap -property *
 }
 
 init -cfg $GameConfig
