@@ -7,16 +7,21 @@ param(
 
 )
 
-#Game constants.
-$const_combat_max_rounds = 3
-$const_hull_damage_value = 1 #0 for "vanilla" rules; 1+ makes larger ships tougher than smaller ships with equal armor/shields/ecm.
-$const_TL_add_to_BPLimit = 1 #0 for "vanilla" rules; 1+ alters the BP-by-size calculation from the static max-size spec to (sqrt(MaxSize) * (sqrt(maxSize) + TL -1))
-$const_TL_add_to_damage  = 0 #1 for "vanilla" rules; 0 compensates for the increased damage capability that comes from having more BP for higher-TL ships.
+if($PSBoundParameters['Debug']) { $debugPreference = $onDebugAction }
 
-#Initial Configuration. PD gets all stats explicitly to help table-formatting.
-$GameConfig=@"
+#Game constants.
+#"Hull_damage_value": 0 for "vanilla" rules; 1+ makes larger ships tougher than smaller ships with equal armor/shields/ecm.
+#"TL_addTo_BPLimit" : 0 for "vanilla" rules; 1+ alters the BP-by-size calculation from the static max-size spec to (sqrt(MaxSize) * (sqrt(maxSize) + TL -1))"
+#"TL_addTo_Damage"  : 1 for "vanilla" rules; 0 compensates for the increased damage capability that comes from having more BP for higher-TL ships."ration. PD gets all stats explicitly to help table-formatting.
+$GameConfig_ReignOfStars=@"
 {
-	"ComponentSpecs": [
+	"Constants":{
+	      "Combat_max_rounds":3	
+		, "Hull_damage_value":1  
+		, "TL_addTo_BPLimit" :1  
+		, "TL_addTo_Damage"  :0  
+	}
+	, "ComponentSpecs": [
 		  { "Name":"PD" , "BPCost": 1    , "Damage" : 0, "RoF":0, "Defense": 0, "ECM":0, "Hull":0, "maxSize":  0, "PDPerMP":0, "Power":1, "CompType":"Power"      , "Info" : { "LongName":"Power/Drive"                , "Description":"Total effective strength of a ship's engines."                                        } }
 		, { "Name":"B"  , "BPCost": 1    , "Damage" : 1, "RoF":1                                                                        , "CompType":"Weapon"     , "Info" : { "LongName":"Beams"                      , "Description":"Project a beam of destructive energy at a target."                                    } }
 		, { "Name":"C"  , "BPCost": 1                  , "RoF":3                                                                        , "CompType":"Weapon"     , "Info" : { "LongName":"Cannons"                    , "Description":"Launch Shells. Each Cannon may fire either 1, 2 or 3 Shells per combat round."        } }
@@ -42,21 +47,42 @@ $GameConfig=@"
 		, { "Name":"LSS", "BPCost": 4                                                  , "Hull": 8, "maxSize": 64                       , "CompType":"Hull"       , "Info" : { "LongName":"Large System Ship Hull"     , "Description":"For ships BP 64(H 8) or smaller. (Capital)"                                           } }
 		, { "Name":"GSS", "BPCost": 6                                                  , "Hull":10, "maxSize":100                       , "CompType":"Hull"       , "Info" : { "LongName":"Giant System Ship Hull"     , "Description":"For ships BP100(H10) or smaller. (Supercapital)"                                      } }
 	]
+	, "ShipTemplate": {
+		  "ID"                     : "TS1-01-001"
+		, "Name"                   : "Template Ship"
+		, "Owner"                  : "Template Owner"
+		, "Location"               : {"ID":"-", "Name":"-", "X":0, "Y":0}
+		, "TL"                     : 1
+		, "Components"             : {
+			"PD":0, "B":0, "S":0, "T":0, "M":0, "SR":0, "C":0, "SH":0, "A":0, "E":0, "H":0, "R":0, "CP":0, "SWG":0, "MWG":0, "LWG":0, "GWG":0, "SSB":0, "MSB":0, "LSB":0, "SSS":0, "MSS":0, "LSS":0, "GSS":0
+		}
+		, "Universe"               : "Reign of Stars"
+		, "Valid"                  : "???"
+		, "Racks"                  : []
+		, "Cargo"                  : []
+		, "Damage"                 : {
+			"PD":0, "B":0, "S":0, "T":0, "M":0, "SR":0, "C":0, "SH":0, "A":0, "E":0, "H":0, "R":0, "CP":0, "SWG":0, "MWG":0, "LWG":0, "GWG":0, "SSB":0, "MSB":0, "LSB":0, "SSS":0, "MSS":0, "LSS":0, "GSS":0
+		}
+	}
+	, "ShipSpecs": [
+		{
+		  "ID":"IWS-01-001"
+		  , "Name":"Gladius-1"
+		  , "Owner":"Empire"
+		  , "Location":{"X":1, "Y":1}
+		  , "TL":2
+		  , "Components":{"SWG":1, "PD":4, "B":2, "S":1}
+		}
+		, {
+		  "ID":"IWS-01-002"
+		  , "Name":"Gladius-2"
+		  , "Owner":"Empire"
+		  , "Components":{"SWG":1, "PD":4, "B":2, "S":1}
+		}
+	]
 }
 "@
 
-#Template and combatant warship specs                          
-$templateInfoSpec       = "ID=TS1-01-001 Name=Template_Ship Owner=Template_Owner Location=COORD[-,-] TL=1 Universe=Reign_Of_Stars Valid=??? Racks= Cargo="
-$templateAttrSpec       = "PD=0 B=0 S=0 T=0 M=0 SR=0 C=0 SH=0 A=0 E=0 H=0 R=0 CP=0 SWG=0 MWG=0 LWG=0 SB=0 _BPCost=0 _MaxSize=0 _PDPerMP=0 _Hull=0"
-$templateSpec           = ("{0} -- {1}" -f $templateInfoSpec, $templateAttrSpec)
-$shipSpecs              = @(
-                             "{0} -- {1}" -f "ID=IWS-01-001 Name=Gladius_001 Owner=Empire Location=COORD[1,1] TL=2", "SWG=1 MWG=1 PD=4 B=2 S=1"
-							,"{0} -- {1}" -f "ID=ISS-0A-00A Name=Portero_001 Owner=Empire Location=COORD[1,1] TL=1 Cargo=12xBP,Space_Marine_Terminators(5)", "SSS=1 PD=6 H=10 S=2" 
-                            ,"{0} -- {1}" -f "ID=RWS-01-001 Name=Vulpine_001 Owner=Rebels Location=COORD[2,2] TL=2 Racks=RSS-0A-00A,RSB-0A-001,BOGUS", "SWG=1 PD=2 T=1 S=1 M=3 SR=1"
-                            ,"{0} -- {1}" -f "ID=RSS-0A-00A Name=Kitsune_00A Owner=Rebels Location=Racked TL=2", "SSS=1 PD=5 B=4 S=1"
-							,"{0} -- {1}" -f "ID=RSB-0A-001 Name=Warrens_00A Owner=Rebels Location=Racked", "SSB=1 PD=2 B=1 S=1"
-						)
-						
 function init()
 {						
 	[cmdletBinding()]
@@ -68,6 +94,9 @@ function init()
 	
 	$summary = summarize-ComponentData -compData $GameData.ComponentSpecs | out-string
 	write-verbose $summary
+	
+	Init-ShipsFromTemplate -template $GameData.ShipTemplate -componentSpec $GameData.ComponentSpecs -shipSpec $GameData.ShipSpecs
+	Init-ShipCollections   -template $GameData.ShipTemplate -componentSpec $GameData.ComponentSpecs -shipSpec $GameData.ShipSpecs
 }
 
 function print-ComponentInfo()
@@ -97,4 +126,58 @@ function summarize-ComponentData()
 	@($util, $weps, $ammo, $defs, $hull, $bays) | format-table -autosize -wrap -property *
 }
 
-init -cfg $GameConfig
+
+
+function init-ShipsFromTemplate()
+{
+	[cmdletBinding()]
+	param ( 
+		  $template
+		, $componentSpec
+		, $shipSpecs
+	)
+	# tried but didn't work: "C:\gitroot\WarpWar [master +0 ~1 -0]> $cS.ShipTemplate | Get-Member -type NoteProperty | % { if($cS.ShipSpecs[0].$($_.Name) -eq $null) {$cS.ShipSpecs[0].$($_.Name) = $cs.ShipTemplate.$($_.Name)} }; $cS.ShipSpecs[0]"
+	# works!               : "C:\gitroot\WarpWar [master +0 ~1 -0]> $cS.ShipTemplate | Get-Member -type NoteProperty | % { if($cS.ShipSpecs[0].$($_.Name) -eq $null) {$cS.ShipSpecs[0] | add-member -type NoteProperty -name $_.Name -Value $cs.ShipTemplate.$($_.Name)} }; $cS.ShipSpecs[0]"
+	
+	$shipT = $template
+	$ships = $shipSpecs
+	$cs = $componentSpec
+	
+	foreach ($ship in $ships)
+	{
+		foreach ($tProperty in $shipT | Get-Member -type NoteProperty)
+		{ 
+			$propName = $tProperty.Name
+			$propVal  = $shipT.$propName
+			
+			if($ship.$($tProperty.Name) -eq $null) 
+			{
+				$ship | add-member -type NoteProperty -Name $propName -Value $propVal
+			} 
+		}
+	}
+		
+	$cS.ShipSpecs[0] | format-table | out-string | write-verbose	
+}
+
+#Replace reference IDs in e.g. "Racks" and "Cargo" arrays with reference to objects
+#??? Replace location IDs in "Location" property with reference to System
+#Remove items from "Components" array for which value is zero
+#Remove items from "Damage" array if ship lacks that component
+function init-ShipCollections
+{
+	[cmdletBinding()]
+	param ( 
+		  $template
+		, $componentSpec
+		, $shipSpecs
+	)
+	
+	foreach ($ship in $shipSpecs)
+	{
+		$ship.Damage = $ship.Damage | where {$_ -ne 0}
+	}
+
+}
+
+init -cfg $GameConfig_ReignOfStars
