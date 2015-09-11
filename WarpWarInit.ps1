@@ -66,18 +66,33 @@ $GameConfig_ReignOfStars=@"
 	}
 	, "ShipSpecs": [
 		{
-		  "ID":"IWS-01-001"
-		  , "Name":"Gladius-1"
-		  , "Owner":"Empire"
-		  , "Location":{"X":1, "Y":1}
-		  , "TL":2
-		  , "Components":{"SWG":1, "PD":4, "B":2, "S":1, "ZZZ":1, "LWG":0}
+		    "ID"        : "IWS-01-001"
+		  , "Name"      : "Gladius-1"
+		  , "Owner"     : "Empire"
+		  , "Location"  : { "X":1, "Y":1 }
+		  , "TL"        : 2
+		  , "Components": { "SWG":1, "PD":4, "B":2, "S":1, "SR":2, "ZZZ":1, "LWG":0 }
+		  , "Damage"    : { "ZZZ":1 }
 		}
 		, {
-		  "ID":"IWS-01-002"
-		  , "Name":"Gladius-2"
-		  , "Owner":"Empire"
-		  , "Components":{"SWG":1, "PD":4, "B":2, "S":1}
+		    "ID"        : "IWS-01-002"
+		  , "Name"      : "Gladius-2"
+		  , "Owner"     : "Empire"
+		  , "Components": { "SWG":1, "PD":4, "B":2, "S":1, "SR":2 }
+		  , "Racks"     : ["ISS-0A-001", "BOGUS"]
+		}
+		, {
+		    "ID"        : "ISS-0A-001"
+		  , "Name"      : "Portero-1"
+		  , "Owner"     : "Empire"
+		  , "Components": { "SSS":1, "PD":4, "S":1, "C":20 }
+		  , "Cargo"     : [{ "Name":"BP", "Size":1, "Qty":5 }, { "Name":"Fifth Space Marines", "Size":5, "Qty":1 }, "ISB-0A-00A"]
+		}
+		, {
+		    "ID"        : "ISB-0A-00A"
+		  , "Name"      : "Orbituo-1"
+		  , "Owner"     : "Empire"
+		  , "Components": { "SSB":1, "PD":4, "S":2, "B":2 }
 		}
 	]
 }
@@ -136,8 +151,6 @@ function init-ShipsFromTemplate()
 		, $componentSpec
 		, $shipSpecs
 	)
-	# tried but didn't work: "C:\gitroot\WarpWar [master +0 ~1 -0]> $cS.ShipTemplate | Get-Member -type NoteProperty | % { if($cS.ShipSpecs[0].$($_.Name) -eq $null) {$cS.ShipSpecs[0].$($_.Name) = $cs.ShipTemplate.$($_.Name)} }; $cS.ShipSpecs[0]"
-	# works!               : "C:\gitroot\WarpWar [master +0 ~1 -0]> $cS.ShipTemplate | Get-Member -type NoteProperty | % { if($cS.ShipSpecs[0].$($_.Name) -eq $null) {$cS.ShipSpecs[0] | add-member -type NoteProperty -name $_.Name -Value $cs.ShipTemplate.$($_.Name)} }; $cS.ShipSpecs[0]"
 	
 	$shipT = $template
 	$ships = $shipSpecs
@@ -160,10 +173,6 @@ function init-ShipsFromTemplate()
 	$cS.ShipSpecs[0] | format-table | out-string | write-verbose	
 }
 
-#Replace reference IDs in e.g. "Racks" and "Cargo" arrays with reference to objects
-#??? Replace location IDs in "Location" property with reference to System
-#Remove items from "Components" array for which value is zero
-#Remove items from "Damage" array if ship lacks that component
 function init-ShipCollections
 {
 	[cmdletBinding()]
@@ -175,13 +184,24 @@ function init-ShipCollections
 	
 	foreach ($ship in $shipSpecs)
 	{
-		$ship.Components = remove-ZeroValProperties -collection $ship.Components
+		#Remove items from "Components" array for which value is zero
+		write-verbose " - Filter out zero-value components"
+		$ship.Components = get-NonzeroProperties -collection $ship.Components
+
+		#Remove items from "Damage" array if ship lacks that component
+		write-verbose " - Filter out irrelevant damage values"
 		$ship.Damage     = remove-ExtraProperties   -parent $ship.Components -child $ship.Damage
+		
+		#Replace reference IDs in e.g. "Racks" and "Cargo" arrays with reference to objects
+		#WORKS: $cS.ShipSpecs | ? {$_.ID -eq "ISS-0A-001"} | % { $_.Cargo } | % { if ($_.getType().Name -ne "String") { $_ } else { $id=$_; $cS.ShipSpecs | ? {$_.ID -eq $id }  } } | format-list
+
+		#??? Replace location IDs in "Location" property with reference to System
+		
 	}
 
 }
 
-function remove-ZeroValProperties()
+function get-NonzeroProperties()
 {
 	[cmdletBinding()]
 	param (
@@ -189,14 +209,14 @@ function remove-ZeroValProperties()
 	)
 	
 		$collectionKeys  = get-member -type NoteProperty -inputObject $collection
-		write-verbose "Collection will be trimmed of zero-value entries:"
-		write-verbose ($collectionKeys | out-string)
+		write-verbose "   Collection will be trimmed of zero-value entries:"
+		write-verbose $($collectionKeys | out-string)
 		$nonzeroVals = new-Object PSCustomObject
 		foreach ($cItem in $collectionKeys)
 		{
 			$cKey    = $cItem.Name
 			$cVal    = $collection.$cKey
-			$logText = "{0,-10}" -f "$cKey : $cVal"
+			$logText = "     {0,-10}" -f "$cKey : $cVal"
 			if ($cVal -ne 0)
 			{
 				$logText += ""
@@ -208,7 +228,7 @@ function remove-ZeroValProperties()
 			}
 			write-verbose $logText
 		}
-		write-verbose "Nonzero values found:"
+		write-verbose "   Values kept:"
 		write-verbose ($nonzeroVals | format-list | out-string)
 		
 		$nonzeroVals
@@ -223,12 +243,26 @@ function remove-ExtraProperties()
 	)
 	
 		$collectionKeys  = get-member -type NoteProperty -inputObject $parent
-		$childVals = @()
-		foreach ($cKey in $collectionKeys)
+		$childVals = new-Object -type PSCustomObject
+		foreach ($cItem in $collectionKeys)
 		{
-			$childVals += ( $child.$cKey, 0 -ne $null)[0]
+			$cKey = $cItem.Name
+			$cVal = (nullCoalesce $child.$cKey, 0)
+			$childVals | add-member -type NoteProperty -Name  $cKey -Value $cVal
+			$logText = "     {0,-10}" -f "$cKey : $cVal added to child collection"
+			write-verbose $logText
 		}
-		$nonzeroVals
+		$childVals
+}
+
+function nullCoalesce()
+{
+	[cmdletBinding()]
+	param(
+		$items
+	)
+	
+	($items -ne $null)[0]
 }
 
 init -cfg $GameConfig_ReignOfStars
