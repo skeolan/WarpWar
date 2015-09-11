@@ -71,7 +71,7 @@ $GameConfig_ReignOfStars=@"
 		  , "Owner":"Empire"
 		  , "Location":{"X":1, "Y":1}
 		  , "TL":2
-		  , "Components":{"SWG":1, "PD":4, "B":2, "S":1}
+		  , "Components":{"SWG":1, "PD":4, "B":2, "S":1, "ZZZ":1, "LWG":0}
 		}
 		, {
 		  "ID":"IWS-01-002"
@@ -175,9 +175,60 @@ function init-ShipCollections
 	
 	foreach ($ship in $shipSpecs)
 	{
-		$ship.Damage = $ship.Damage | where {$_ -ne 0}
+		$ship.Components = remove-ZeroValProperties -collection $ship.Components
+		$ship.Damage     = remove-ExtraProperties   -parent $ship.Components -child $ship.Damage
 	}
 
+}
+
+function remove-ZeroValProperties()
+{
+	[cmdletBinding()]
+	param (
+		$collection
+	)
+	
+		$collectionKeys  = get-member -type NoteProperty -inputObject $collection
+		write-verbose "Collection will be trimmed of zero-value entries:"
+		write-verbose ($collectionKeys | out-string)
+		$nonzeroVals = new-Object PSCustomObject
+		foreach ($cItem in $collectionKeys)
+		{
+			$cKey    = $cItem.Name
+			$cVal    = $collection.$cKey
+			$logText = "{0,-10}" -f "$cKey : $cVal"
+			if ($cVal -ne 0)
+			{
+				$logText += ""
+				$nonzeroVals | add-member -type NoteProperty -Name $cKey -Value $cVal
+			}
+			else
+			{
+				$logText += " is zero, excising"
+			}
+			write-verbose $logText
+		}
+		write-verbose "Nonzero values found:"
+		write-verbose ($nonzeroVals | format-list | out-string)
+		
+		$nonzeroVals
+}
+
+function remove-ExtraProperties()
+{
+	[cmdletBinding()]
+	param (
+		  $parent #Collection whose list of properties is "canonical"
+		, $child  #Collection should not contain any properties absent from parent
+	)
+	
+		$collectionKeys  = get-member -type NoteProperty -inputObject $parent
+		$childVals = @()
+		foreach ($cKey in $collectionKeys)
+		{
+			$childVals += ( $child.$cKey, 0 -ne $null)[0]
+		}
+		$nonzeroVals
 }
 
 init -cfg $GameConfig_ReignOfStars
