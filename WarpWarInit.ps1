@@ -63,6 +63,9 @@ $GameConfig_ReignOfStars=@"
 		, "Damage"                 : {
 			"PD":0, "B":0, "S":0, "T":0, "M":0, "SR":0, "C":0, "SH":0, "A":0, "E":0, "H":0, "R":0, "CP":0, "SWG":0, "MWG":0, "LWG":0, "GWG":0, "SSB":0, "MSB":0, "LSB":0, "SSS":0, "MSS":0, "LSS":0, "GSS":0
 		}
+		, "DerivedAttrs"           : []
+		, "EffectiveAttrs"         : []
+		, "ValidationResult"       : []
 	}
 	, "ShipSpecs": [
 		{
@@ -80,6 +83,7 @@ $GameConfig_ReignOfStars=@"
 		  , "Owner"     : "Empire"
 		  , "Components": { "SWG":1, "PD":4, "B":2, "S":1, "SR":2 }
 		  , "Racks"     : ["ISS-0A-001", "BOGUS"]
+		  , "Location"  : "SYS001"
 		}
 		, {
 		    "ID"        : "ISS-0A-001"
@@ -87,12 +91,22 @@ $GameConfig_ReignOfStars=@"
 		  , "Owner"     : "Empire"
 		  , "Components": { "SSS":1, "PD":4, "S":1, "C":20 }
 		  , "Cargo"     : [{ "Name":"BP", "Size":1, "Qty":5 }, { "Name":"Fifth Space Marines", "Size":5, "Qty":1 }, "ISB-0A-00A"]
+		  , "Location"  : "IWS-01-002"
 		}
 		, {
 		    "ID"        : "ISB-0A-00A"
 		  , "Name"      : "Orbituo-1"
 		  , "Owner"     : "Empire"
 		  , "Components": { "SSB":1, "PD":4, "S":2, "B":2 }
+		  , "Location"  : "ISS-0A-001"
+		}
+	]
+	, "Systems": [
+		{
+			  "ID"      : "SYS001"
+			, "Name"    : "Beta Hydri"
+			, "X"       : "5"
+			, "Y"       : "5"
 		}
 	]
 }
@@ -104,14 +118,15 @@ function init()
 	param(
 		$cfg
 	)
-	$GameData = $cfg | ConvertFrom-Json
-	$GameData
-	
+	$GameData = (New-Object System.Web.Script.Serialization.JavaScriptSerializer).Deserialize($cfg, [System.Collections.Hashtable])
+
 	$summary = summarize-ComponentData -compData $GameData.ComponentSpecs | out-string
 	write-verbose $summary
 	
 	Init-ShipsFromTemplate -template $GameData.ShipTemplate -componentSpec $GameData.ComponentSpecs -shipSpec $GameData.ShipSpecs
-	Init-ShipCollections   -template $GameData.ShipTemplate -componentSpec $GameData.ComponentSpecs -shipSpec $GameData.ShipSpecs
+	Init-ShipCollections   -template $GameData.ShipTemplate -componentSpec $GameData.ComponentSpecs -shipSpec $GameData.ShipSpecs -systems $GameData.Systems
+	
+	$GameData	
 }
 
 function print-ComponentInfo()
@@ -138,7 +153,7 @@ function summarize-ComponentData()
 	$bays = $GameData.ComponentSpecs | ? { $_.CompType -eq "Carry"      }
 	$util = $GameData.ComponentSpecs | ? { $_.CompType -eq "Utility" -or $_.CompType -eq  "Power" }
 
-	@($util, $weps, $ammo, $defs, $hull, $bays) | format-table -autosize -wrap -property *
+	@($util, $weps, $ammo, $defs, $hull, $bays) | % { $_ | format-table -autosize -wrap -property * }
 }
 
 
@@ -158,19 +173,17 @@ function init-ShipsFromTemplate()
 	
 	foreach ($ship in $ships)
 	{
-		foreach ($tProperty in $shipT | Get-Member -type NoteProperty)
+		foreach ($tProperty in $shipT.Keys)
 		{ 
-			$propName = $tProperty.Name
+			$propName = $tProperty
 			$propVal  = $shipT.$propName
 			
-			if($ship.$($tProperty.Name) -eq $null) 
+			if($ship.$tProperty -eq $null) 
 			{
-				$ship | add-member -type NoteProperty -Name $propName -Value $propVal
+				$ship.$propName = $propVal
 			} 
 		}
 	}
-		
-	$cS.ShipSpecs[0] | format-table | out-string | write-verbose	
 }
 
 function init-ShipCollections
@@ -180,58 +193,92 @@ function init-ShipCollections
 		  $template
 		, $componentSpec
 		, $shipSpecs
+		, $systems
 	)
 	
 	foreach ($ship in $shipSpecs)
 	{
-		#Remove items from "Components" array for which value is zero
 		write-verbose " - Filter out zero-value components"
-		$ship.Components = get-NonzeroProperties -collection $ship.Components
+		$ship.Components = $ship.Components.GetEnumerator() | ? { $_.Value -ne 0 }
 
-		#Remove items from "Damage" array if ship lacks that component
 		write-verbose " - Filter out irrelevant damage values"
 		$ship.Damage     = remove-ExtraProperties   -parent $ship.Components -child $ship.Damage
 		
-		#Replace reference IDs in e.g. "Racks" and "Cargo" arrays with reference to objects
-		#WORKS: $cS.ShipSpecs | ? {$_.ID -eq "ISS-0A-001"} | % { $_.Cargo } | % { if ($_.getType().Name -ne "String") { $_ } else { $id=$_; $cS.ShipSpecs | ? {$_.ID -eq $id }  } } | format-list
+		write-verbose "Replace reference IDs in e.g. 'Racks' and 'Cargo' arrays with references to Ships"
+		$ship.Cargo      = replace-IDsWithReferences -collection $ship.Cargo -referenceCollection $shipSpecs
+		$ship.Racks      = replace-IDsWithReferences -collection $ship.Racks -referenceCollection $shipSpecs
 
-		#??? Replace location IDs in "Location" property with reference to System
+		write-verbose "Replace location IDs for $($ship.Name) in 'Location' property '$($ship.Location)' with references to Systems OR, failing that, Ships"
+		$ship.Location   = (replace-IDsWithReferences -collection @($ship.Location) -referenceCollection @($systems, $shipSpecs))[0]
+		write-verbose "Location is now $($ship.Location)"
 		
+		write-verbose "Generate derived attributes from components, racks, cargo"
+		$ship.derivedAttrs     = (generate-derivedAttrs -unit $ship)
+
+		write-verbose "Generate effective attribute values from components, damage"
+		$ship.effectiveAttrs   = (generate-effectiveAttrs -unit $ship)
+
+		write-verbose "Generate validation errors from components, racks, cargo, damage"
+		$ship.validationResult = (generate-validationResult -unit $ship)
+			
 	}
 
 }
 
-function get-NonzeroProperties()
+function generate-derivedAttrs()
 {
 	[cmdletBinding()]
 	param (
-		$collection
+		$unit
 	)
 	
-		$collectionKeys  = get-member -type NoteProperty -inputObject $collection
-		write-verbose "   Collection will be trimmed of zero-value entries:"
-		write-verbose $($collectionKeys | out-string)
-		$nonzeroVals = new-Object PSCustomObject
-		foreach ($cItem in $collectionKeys)
-		{
-			$cKey    = $cItem.Name
-			$cVal    = $collection.$cKey
-			$logText = "     {0,-10}" -f "$cKey : $cVal"
-			if ($cVal -ne 0)
-			{
-				$logText += ""
-				$nonzeroVals | add-member -type NoteProperty -Name $cKey -Value $cVal
-			}
-			else
-			{
-				$logText += " is zero, excising"
-			}
-			write-verbose $logText
-		}
-		write-verbose "   Values kept:"
-		write-verbose ($nonzeroVals | format-list | out-string)
-		
-		$nonzeroVals
+	$result = @()
+	
+	#Total construction cost
+	# BPCost    = (Sum of each component:[roundUp(ComponentValue * Cost)])
+
+	#Hull/drivetype dependent
+	# BPMax     = (Sum of BPMax of all components with a BPMax value)
+	# PDPerMp   = (Sum of PDPerMP of all components with a PDPerMP value)
+	# Core      = (Sum of Core of all components with a Core value)
+
+	#Cargo/racks
+	# HUsed     = (Sum of each Cargo entry:[roundUp(Size * Qty)]) 
+	# HAvail    = Component H value minus HUsed
+	# SRUsed    = (Count of items in Racks array)
+	# SRAvail   = Component SR value minus SRUsed
+
+	$result
+}
+
+function generate-effectiveAttrs()
+{
+	[cmdletBinding()]
+	param (
+		$unit
+	)
+	$result = @()
+	
+	#For each nonzero Component, subtract Damage value from Component value
+	
+
+	$result
+}
+
+function generate-validationResult()
+{
+	[cmdletBinding()]
+	param (
+		$unit
+	)
+	
+	$result = @()
+	
+	#SRAvail should be nonnegative
+	#HAvail should be nonnegative
+	#BPCost should be less than BPMax
+
+	$result
 }
 
 function remove-ExtraProperties()
@@ -242,17 +289,42 @@ function remove-ExtraProperties()
 		, $child  #Collection should not contain any properties absent from parent
 	)
 	
-		$collectionKeys  = get-member -type NoteProperty -inputObject $parent
-		$childVals = new-Object -type PSCustomObject
-		foreach ($cItem in $collectionKeys)
+		$collectionKeys  = $parent.Keys
+		$childVals = @{}
+		foreach ($cKey in $collectionKeys)
 		{
-			$cKey = $cItem.Name
 			$cVal = (nullCoalesce $child.$cKey, 0)
-			$childVals | add-member -type NoteProperty -Name  $cKey -Value $cVal
+			$childVals.$cKey = $cVal
 			$logText = "     {0,-10}" -f "$cKey : $cVal added to child collection"
 			write-verbose $logText
 		}
 		$childVals
+}
+
+function replace-IDsWithReferences()
+{
+	[cmdletBinding()]
+	param (
+		  $collection
+		, $referenceCollection
+	)
+	
+	$newCollection = @()
+	
+	foreach($item in $collection)
+	{
+		if($item.getType().Name -eq "String".getType().Name)
+		{
+			$newEntry = $referenceCollection | where { $_.ID -eq $item }
+			$newCollection += (nullCoalesce $newEntry, $item)
+		}
+		else
+		{
+			$newCollection += $item
+		}
+	}
+	
+	$newCollection
 }
 
 function nullCoalesce()
