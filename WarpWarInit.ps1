@@ -199,6 +199,7 @@ function init-ShipCollections
 		, $systems
 	)
 	
+	#First pass -- does not depend on other units' derived values
 	foreach ($ship in $shipSpecs)
 	{
 		write-verbose " - Filter out zero-value components"
@@ -216,7 +217,7 @@ function init-ShipCollections
 		write-verbose "Location is now $($ship.Location)"
 		
 		write-verbose "Generate derived attributes from components, racks, cargo"
-		$ship.DerivedAttrs     = (generate-derivedAttrs -unit $ship -componentSpec $componentSpec)
+		generate-derivedAttrs -unit $ship -componentSpec $componentSpec
 
 		write-verbose "Generate effective attribute values from components, damage"
 		$ship.EffectiveAttrs   = (generate-effectiveAttrs -unit $ship)
@@ -224,6 +225,12 @@ function init-ShipCollections
 		write-verbose "Generate validation errors from components, racks, cargo, damage"
 		$ship.ValidationResult = (generate-validationResult -unit $ship)
 			
+	}
+	#Second pass -- depends on other units' derived values
+	foreach ($ship in $shipSpecs)
+	{
+		write-verbose "Generate derived attributes from unit collections"
+		generate-collectionAttrs -unit $ship -componentSpec $componentSpec
 	}
 
 }
@@ -235,23 +242,14 @@ function generate-derivedAttrs()
 		  $unit
 		, $componentSpec
 	)
-	
-	$result = @{		
-		#Total construction cost
-		"BPCost"   = ( (get-DerivedValueSet -depKey "BPCost" -attrSet $unit.Components -depSpec $componentSpec )  | measure-object -sum).sum
 
-		#Hull/drivetype dependent
-		"PDPerMP"  = ( (get-DerivedValueSet -depKey "PDPerMP" -attrSet $unit.Components -depSpec $componentSpec )  | measure-object -sum).sum	
-		"CoreSize" = ( (get-DerivedValueSet -depKey "Core" -attrSet $unit.Components -depSpec $componentSpec )  | measure-object -sum).sum	
-		"BPMax"    = ( (get-DerivedValueSet -depKey "MaxSize" -attrSet $unit.Components -depSpec $componentSpec )  | measure-object -sum).sum	
+	#Total construction cost
+	$unit.BPCost   = ( (get-DerivedValueSet -depKey "BPCost" -attrSet $unit.Components -depSpec $componentSpec )  | measure-object -sum).sum
 
-		#Cargo/racks
-		# HUsed     = (Sum of each Cargo entry:[roundUp(Size * Qty)]) 
-		# HAvail    = Component H value minus HUsed
-		# SRUsed    = (Count of items in Racks array)
-		# SRAvail   = Component SR value minus SRUsed
-		
-	}
+	#Hull/drivetype dependent
+	$unit.PDPerMP  = ( (get-DerivedValueSet -depKey "PDPerMP" -attrSet $unit.Components -depSpec $componentSpec )  | measure-object -sum).sum	
+	$unit.Size     = ( (get-DerivedValueSet -depKey "Core" -attrSet $unit.Components -depSpec $componentSpec )  | measure-object -sum).sum	
+	$unit.BPMax    = ( (get-DerivedValueSet -depKey "MaxSize" -attrSet $unit.Components -depSpec $componentSpec )  | measure-object -sum).sum	
 
 	#BPMax is simple for "vanilla" rules; Optional TL rule alters the BP-by-size calculation 
 	#  from the static max-size spec 
@@ -259,10 +257,23 @@ function generate-derivedAttrs()
 	if($Constants.TL_addTo_BPLimit -gt 0)
 	{
 		$mS           = $result.BPMax
-		$result.BPMax = [math]::sqrt($mS) * ([math]::sqrt($mS) + $ship.TL -1)
+		$unit.BPMax = [math]::sqrt($mS) * ([math]::sqrt($mS) + $ship.TL -1)
 	}
+}
 
-	$result
+function generate-collectionAttrs()
+{
+	[cmdletBinding()]
+	param(
+		  $unit
+		, $componentSpec
+	)
+	#Cargo/racks
+	$unit.HUsed     = calculate-ContainerSum -container $unit.Cargo 
+	$unit.HAvail    = (get-ComponentValue -unit $unit -componentKey "H" ) - $unit.HUsed
+	$unit.SRUsed    = $unit.Racks.Count
+	$unit.SRAvail   = (get-ComponentValue -unit $unit -componentKey "SR") - $unit.SRUsed
+		
 }
 
 function generate-effectiveAttrs()
@@ -354,6 +365,34 @@ function get-DerivedValueSet()
 	}
 }
 
+function calculate-ContainerSum()
+{
+	[cmdletBinding()]
+	param(
+		  $container
+		, $cNameKey="Name"
+		, $cQtyKey ="Qty"
+		, $cSizeKey="Size"
+	)
+	
+	$cSum = 0
+	foreach ($cI in $container) {
+		$cIItem = $cI.$cNameKey
+		$cIQty  = [Decimal] (nullCoalesce $cI.$cQtyKey , 1)
+		$cISize = [Decimal] (nullCoalesce $cI.$cSizeKey, 1)
+
+		Write-Verbose "     CONTAINER $cIItem - $cIQty x $cISize"
+		if($cIQty -gt 0 -and $cISize -gt 0)
+		{
+			$cSum += $cIQty * $cISize
+		}
+		else
+		{
+			Write-Debug "         Qty or Size for $cIItem invalid"
+		}
+	}
+	$cSum
+}
 
 function replace-IDsWithReferences()
 {
@@ -379,6 +418,23 @@ function replace-IDsWithReferences()
 	}
 	
 	$newCollection
+}
+
+function get-ComponentValue()
+{
+	[cmdletBinding()]
+	param(
+		  $unit
+		, $componentKey
+	)
+
+	$cEntry = $unit.Components | where-object {
+		$_.Key -eq $componentKey
+	}
+	
+	write-verbose ("GET_ComponentValue: {0} for {1} is {2}" -f $componentKey, $unit.Name, $cEntry.Value)
+	
+	(nullCoalesce $cEntry.Value, 0)
 }
 
 function nullCoalesce()
