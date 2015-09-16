@@ -22,7 +22,7 @@ $GameConfig_ReignOfStars=@"
 		, "TL_addTo_Damage"  :0  
 	}
 	, "ComponentSpecs": [
-		  { "Name":"PD" , "BPCost": 1    , "Damage" : 0, "RoF":0, "Defense": 0, "ECM":0, "Hull":0, "maxSize":  0, "PDPerMP":0, "Power":1, "CompType":"Power"      , "Info" : { "LongName":"Power/Drive"                , "Description":"Total effective strength of a ship's engines."                                        } }
+		  { "Name":"PD" , "BPCost": 1    , "Damage" : 0, "RoF":0, "Defense": 0, "ECM":0, "Core":0, "MaxSize":  0, "PDPerMP":0, "Power":1, "CompType":"Power"      , "Info" : { "LongName":"Power/Drive"                , "Description":"Total effective strength of a ship's engines."                                        } }
 		, { "Name":"B"  , "BPCost": 1    , "Damage" : 1, "RoF":1                                                                        , "CompType":"Weapon"     , "Info" : { "LongName":"Beams"                      , "Description":"Project a beam of destructive energy at a target."                                    } }
 		, { "Name":"C"  , "BPCost": 1                  , "RoF":3                                                                        , "CompType":"Weapon"     , "Info" : { "LongName":"Cannons"                    , "Description":"Launch Shells. Each Cannon may fire either 1, 2 or 3 Shells per combat round."        } }
 		, { "Name":"T"  , "BPCost": 1                  , "RoF":1                                                                        , "CompType":"Weapon"     , "Info" : { "LongName":"Tubes"                      , "Description":"Launch Missiles. Each Tube may launch one Missile per combat round."                  } }
@@ -35,17 +35,17 @@ $GameConfig_ReignOfStars=@"
 		, { "Name":"H"  , "BPCost": 0.1                                                                                                 , "CompType":"Carry"      , "Info" : { "LongName":"Hold"                       , "Description":"Contain cargo and/or BPs."                                                            } }
 		, { "Name":"R"  , "BPCost": 5                                                                                                   , "CompType":"Utility"    , "Info" : { "LongName":"Repair"                     , "Description":"Use BPs in Hold or from Star to repair self or others during the build/repair event." } }
 		, { "Name":"CP" , "BPCost":15                                                                                                   , "CompType":"Utility"    , "Info" : { "LongName":"Colony Pod"                 , "Description":"Establishes a new Colony when deployed."                                              } }
-		, { "Name":"SSB", "BPCost": 7                                                  , "Hull": 8, "maxSize": 64                       , "CompType":"Hull"       , "Info" : { "LongName":"Small Starbase Hull"        , "Description":"For bases BP 64(H 8) or smaller. (Defsat)"                                            } }
-		, { "Name":"MSB", "BPCost":13                                                  , "Hull":12, "maxSize":144                       , "CompType":"Hull"       , "Info" : { "LongName":"Medium Starbase Hull"       , "Description":"For bases BP144(H12) or smaller. (Station)"                                           } }
-		, { "Name":"LSB", "BPCost":25                                                  , "Hull":20, "maxSize":400                       , "CompType":"Hull"       , "Info" : { "LongName":"Large Starbase Hull"        , "Description":"For bases BP400(H20) or smaller. (Fortress)"                                          } }
-		, { "Name":"SWG", "BPCost": 3                                                  , "Hull": 3, "maxSize":  9, "PDPerMP":1          , "CompType":"Hull"       , "Info" : { "LongName":"Small Warp Generator Hull"  , "Description":"For ships BP  9(H 3) or smaller. (Escort)"                                            } }
-		, { "Name":"MWG", "BPCost": 6                                                  , "Hull": 6, "maxSize": 36, "PDPerMP":2          , "CompType":"Hull"       , "Info" : { "LongName":"Medium Warp Generator Hull" , "Description":"For ships BP 36(H 6) or smaller. (Cruiser)"                                           } }
-		, { "Name":"LWG", "BPCost": 9                                                  , "Hull": 8, "maxSize": 64, "PDPerMP":3          , "CompType":"Hull"       , "Info" : { "LongName":"Large Warp Generator Hull"  , "Description":"For ships BP 64(H 8) or smaller. (Capital)"                                           } }
-		, { "Name":"GWG", "BPCost":12                                                  , "Hull":10, "maxSize":100, "PDPerMP":3          , "CompType":"Hull"       , "Info" : { "LongName":"Giant Warp Generator Hull"  , "Description":"For ships BP100(H10) or smaller. (Supercapital)"                                      } }
-		, { "Name":"SSS", "BPCost": 0                                                  , "Hull": 3, "maxSize":  9                       , "CompType":"Hull"       , "Info" : { "LongName":"Small System Ship Hull"     , "Description":"For ships BP  9(H 3) or smaller. (Fighter/Escort)"                                    } }
-		, { "Name":"MSS", "BPCost": 2                                                  , "Hull": 6, "maxSize": 36                       , "CompType":"Hull"       , "Info" : { "LongName":"Medium System Ship Hull"    , "Description":"For ships BP 36(H 6) or smaller. (Cruiser)"                                           } }
-		, { "Name":"LSS", "BPCost": 4                                                  , "Hull": 8, "maxSize": 64                       , "CompType":"Hull"       , "Info" : { "LongName":"Large System Ship Hull"     , "Description":"For ships BP 64(H 8) or smaller. (Capital)"                                           } }
-		, { "Name":"GSS", "BPCost": 6                                                  , "Hull":10, "maxSize":100                       , "CompType":"Hull"       , "Info" : { "LongName":"Giant System Ship Hull"     , "Description":"For ships BP100(H10) or smaller. (Supercapital)"                                      } }
+		, { "Name":"SSB", "BPCost": 7                                                  , "Core": 8, "MaxSize": 64                       , "CompType":"Hull"       , "Info" : { "LongName":"Small Starbase Hull"        , "Description":"For bases BP 64(H 8) or smaller. (Defsat)"                                            } }
+		, { "Name":"MSB", "BPCost":13                                                  , "Core":12, "MaxSize":144                       , "CompType":"Hull"       , "Info" : { "LongName":"Medium Starbase Hull"       , "Description":"For bases BP144(H12) or smaller. (Station)"                                           } }
+		, { "Name":"LSB", "BPCost":25                                                  , "Core":20, "MaxSize":400                       , "CompType":"Hull"       , "Info" : { "LongName":"Large Starbase Hull"        , "Description":"For bases BP400(H20) or smaller. (Fortress)"                                          } }
+		, { "Name":"SWG", "BPCost": 3                                                  , "Core": 3, "MaxSize":  9, "PDPerMP":1          , "CompType":"Hull"       , "Info" : { "LongName":"Small Warp Generator Hull"  , "Description":"For ships BP  9(H 3) or smaller. (Escort)"                                            } }
+		, { "Name":"MWG", "BPCost": 6                                                  , "Core": 6, "MaxSize": 36, "PDPerMP":2          , "CompType":"Hull"       , "Info" : { "LongName":"Medium Warp Generator Hull" , "Description":"For ships BP 36(H 6) or smaller. (Cruiser)"                                           } }
+		, { "Name":"LWG", "BPCost": 9                                                  , "Core": 8, "MaxSize": 64, "PDPerMP":3          , "CompType":"Hull"       , "Info" : { "LongName":"Large Warp Generator Hull"  , "Description":"For ships BP 64(H 8) or smaller. (Capital)"                                           } }
+		, { "Name":"GWG", "BPCost":12                                                  , "Core":10, "MaxSize":100, "PDPerMP":3          , "CompType":"Hull"       , "Info" : { "LongName":"Giant Warp Generator Hull"  , "Description":"For ships BP100(H10) or smaller. (Supercapital)"                                      } }
+		, { "Name":"SSS", "BPCost": 0                                                  , "Core": 3, "MaxSize":  9                       , "CompType":"Hull"       , "Info" : { "LongName":"Small System Ship Hull"     , "Description":"For ships BP  9(H 3) or smaller. (Fighter/Escort)"                                    } }
+		, { "Name":"MSS", "BPCost": 2                                                  , "Core": 6, "MaxSize": 36                       , "CompType":"Hull"       , "Info" : { "LongName":"Medium System Ship Hull"    , "Description":"For ships BP 36(H 6) or smaller. (Cruiser)"                                           } }
+		, { "Name":"LSS", "BPCost": 4                                                  , "Core": 8, "MaxSize": 64                       , "CompType":"Hull"       , "Info" : { "LongName":"Large System Ship Hull"     , "Description":"For ships BP 64(H 8) or smaller. (Capital)"                                           } }
+		, { "Name":"GSS", "BPCost": 6                                                  , "Core":10, "MaxSize":100                       , "CompType":"Hull"       , "Info" : { "LongName":"Giant System Ship Hull"     , "Description":"For ships BP100(H10) or smaller. (Supercapital)"                                      } }
 	]
 	, "ShipTemplate": {
 		  "ID"                     : "TS1-01-001"
@@ -89,7 +89,7 @@ $GameConfig_ReignOfStars=@"
 		    "ID"        : "ISS-0A-001"
 		  , "Name"      : "Portero-1"
 		  , "Owner"     : "Empire"
-		  , "Components": { "SSS":1, "PD":4, "S":1, "C":20 }
+		  , "Components": { "SSS":1, "PD":4, "S":1, "H":20 }
 		  , "Cargo"     : [{ "Name":"BP", "Size":1, "Qty":5 }, { "Name":"Fifth Space Marines", "Size":5, "Qty":1 }, "ISB-0A-00A"]
 		  , "Location"  : "IWS-01-002"
 		}
@@ -112,13 +112,16 @@ $GameConfig_ReignOfStars=@"
 }
 "@
 
+$Constants=@{}
+
 function init()
 {						
 	[cmdletBinding()]
 	param(
 		$cfg
 	)
-	$GameData = (New-Object System.Web.Script.Serialization.JavaScriptSerializer).Deserialize($cfg, [System.Collections.Hashtable])
+	$GameData  = (New-Object System.Web.Script.Serialization.JavaScriptSerializer).Deserialize($cfg, [System.Collections.Hashtable])
+	$Constants = $GameData.Constants
 
 	$summary = summarize-ComponentData -compData $GameData.ComponentSpecs | out-string
 	write-verbose $summary
@@ -213,13 +216,13 @@ function init-ShipCollections
 		write-verbose "Location is now $($ship.Location)"
 		
 		write-verbose "Generate derived attributes from components, racks, cargo"
-		$ship.derivedAttrs     = (generate-derivedAttrs -unit $ship)
+		$ship.DerivedAttrs     = (generate-derivedAttrs -unit $ship -componentSpec $componentSpec)
 
 		write-verbose "Generate effective attribute values from components, damage"
-		$ship.effectiveAttrs   = (generate-effectiveAttrs -unit $ship)
+		$ship.EffectiveAttrs   = (generate-effectiveAttrs -unit $ship)
 
 		write-verbose "Generate validation errors from components, racks, cargo, damage"
-		$ship.validationResult = (generate-validationResult -unit $ship)
+		$ship.ValidationResult = (generate-validationResult -unit $ship)
 			
 	}
 
@@ -229,24 +232,35 @@ function generate-derivedAttrs()
 {
 	[cmdletBinding()]
 	param (
-		$unit
+		  $unit
+		, $componentSpec
 	)
 	
-	$result = @()
-	
-	#Total construction cost
-	# BPCost    = (Sum of each component:[roundUp(ComponentValue * Cost)])
+	$result = @{		
+		#Total construction cost
+		"BPCost"   = ( (get-DerivedValueSet -depKey "BPCost" -attrSet $unit.Components -depSpec $componentSpec )  | measure-object -sum).sum
 
-	#Hull/drivetype dependent
-	# BPMax     = (Sum of BPMax of all components with a BPMax value)
-	# PDPerMp   = (Sum of PDPerMP of all components with a PDPerMP value)
-	# Core      = (Sum of Core of all components with a Core value)
+		#Hull/drivetype dependent
+		"PDPerMP"  = ( (get-DerivedValueSet -depKey "PDPerMP" -attrSet $unit.Components -depSpec $componentSpec )  | measure-object -sum).sum	
+		"CoreSize" = ( (get-DerivedValueSet -depKey "Core" -attrSet $unit.Components -depSpec $componentSpec )  | measure-object -sum).sum	
+		"BPMax"    = ( (get-DerivedValueSet -depKey "MaxSize" -attrSet $unit.Components -depSpec $componentSpec )  | measure-object -sum).sum	
 
-	#Cargo/racks
-	# HUsed     = (Sum of each Cargo entry:[roundUp(Size * Qty)]) 
-	# HAvail    = Component H value minus HUsed
-	# SRUsed    = (Count of items in Racks array)
-	# SRAvail   = Component SR value minus SRUsed
+		#Cargo/racks
+		# HUsed     = (Sum of each Cargo entry:[roundUp(Size * Qty)]) 
+		# HAvail    = Component H value minus HUsed
+		# SRUsed    = (Count of items in Racks array)
+		# SRAvail   = Component SR value minus SRUsed
+		
+	}
+
+	#BPMax is simple for "vanilla" rules; Optional TL rule alters the BP-by-size calculation 
+	#  from the static max-size spec 
+	#  to (sqrt(BPMax) * (sqrt(BPMax) + TL -1))
+	if($Constants.TL_addTo_BPLimit -gt 0)
+	{
+		$mS           = $result.BPMax
+		$result.BPMax = [math]::sqrt($mS) * ([math]::sqrt($mS) + $ship.TL -1)
+	}
 
 	$result
 }
@@ -257,7 +271,7 @@ function generate-effectiveAttrs()
 	param (
 		$unit
 	)
-	$result = @()
+	$result = @{}
 	
 	#For each nonzero Component, subtract Damage value from Component value
 	
@@ -300,6 +314,46 @@ function remove-ExtraProperties()
 		}
 		$childVals
 }
+
+function get-DerivedValueSet()
+{
+	[cmdletBinding()]
+	param(
+		 $attrSet, 
+		 $depSpec,
+		 $depKey
+	)
+	
+	if ($depSpec -eq $null) {
+		Write-Verbose "get-derivedValueSet call made with a null lookup table, will return -1" 
+		return -1
+	}
+	
+	$attrLookup = @{}
+
+	foreach ($item in $attrSet)
+	{
+		$iKey = $item.Key
+		$iVal = $item.Value
+		$attrLookup.$iKey = $iVal
+	}
+		
+	# Only nonzero attributes matter, AND only evaluate if lookup array is non-null
+	foreach ($specEntry in $depSpec)
+	{
+		$entryName = $specEntry.Name
+		$valueEach = $specEntry.$depKey
+		$qty       = (nullCoalesce $attrLookup.$entryName, 0)
+		write-debug "Get derived $depKey value for $entryName : $valueEach * $qty"
+		if($qty -ne 0)
+		{
+			$resultValue = [Math]::Ceiling($valueEach * $qty)
+			$resultValue
+			write-Verbose "$EntryName of $qty @$valueEach (rounded up)= $resultValue"
+		}
+	}
+}
+
 
 function replace-IDsWithReferences()
 {
