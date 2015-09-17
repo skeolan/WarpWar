@@ -182,7 +182,7 @@ function init-ShipCollections
 		$ship.Racks      = replace-IDsWithReferences -collection $ship.Racks -referenceCollection $shipSpecs
 
 		write-verbose "Replace location IDs for $($ship.Name) in 'Location' property '$($ship.Location)' with references to Systems OR, failing that, Ships"
-		$ship.Location   = (replace-IDsWithReferences -collection @($ship.Location) -referenceCollection @($systems, $shipSpecs))[0]
+		$ship.Location   = (replace-IDsWithReferences -collection $ship.Location -referenceCollection @($systems + $shipSpecs))
 		write-verbose "Location is now $($ship.Location)"
 		
 		write-verbose "Generate derived attributes from components, racks, cargo"
@@ -385,28 +385,29 @@ function replace-IDsWithReferences()
 	
 	foreach($item in $collection)
 	{
-		if($item.getType().Name -eq "String".getType().Name)
+		if($item.GetType().Name -like "string".GetType().Name)
 		{
 			$newEntry = $referenceCollection | where { $_.ID -eq $item }
 			$newCollection += (nullCoalesce $newEntry, $item)
+			
+			if ($newEntry -eq $null)
+			{
+				write-verbose "   String Collection item '$item' is not a reference to items in the indicated collection, leaving value as $item"
+				$newCollection += $item
+			}
+			else
+			{
+				write-verbose "   Matched $item to $($newEntry.Name)"
+			}
 		}
 		else
 		{
+			write-verbose "  $item is not a string ID reference, so adding it as-is"
 			$newCollection += $item
 		}
 	}
 	
 	$newCollection
-}
-
-function print-ComponentInfo()
-{
-	[cmdletBinding()]
-	param(
-		$comp
-	)
-	"  {0,-26} {1}" -f  $comp.Info.LongName, $comp.Info.Description
-	"  {0,-26} {1}"   -f " ", ( $comp  )
 }
 
 
@@ -423,17 +424,19 @@ function summarize-ComponentData()
 	$bays = $GameData.ComponentSpecs | ? { $_.CompType -eq "Carry"      }
 	$util = $GameData.ComponentSpecs | ? { $_.CompType -eq "Utility" -or $_.CompType -eq  "Power" }
 
-	foreach ($listing in @($util, $weps, $ammo, $defs, $hull, $bays))
+	foreach ($item in @($util + $weps + $ammo + $defs + $hull + $bays))
 	{
-		foreach ($item in $listing)
+		$itemH = new-object PSCustomObject
+		foreach ($key in $item.Keys)
 		{
-			$itemH = new-object PSCustomObject
-			foreach ($key in $item.Keys)
-			{
-				$itemH | add-member -type NoteProperty -name $key -value $item.$key
-			}
-			$itemH
+			if($key -eq "Info") { continue }
+			$itemH | add-member -type NoteProperty -name $key -value $item.$key
 		}
+		foreach ($key in $item.Info.Keys)
+		{
+			$itemH | add-member -type NoteProperty -name "Info:$key" -value $item.Info.$key
+		}
+		$itemH
 	}
 }
 
