@@ -1,5 +1,5 @@
 #example invocation:
-#     cls; $cS = .\WarpWarInit.ps1 -Verbose; $cS.ComponentSpecs | format-table -property * -wrap -autosize
+#     $cS=$null; cls; $cS = .\WarpWarInit.ps1 -Verbose; $cS.ComponentSpecs | format-table -property * -wrap -autosize
 
 
 [cmdletBinding()]
@@ -120,6 +120,7 @@ function init()
 	param(
 		$cfg
 	)
+	Add-Type -AssemblyName System.Web.Extensions
 	$GameData  = (New-Object System.Web.Script.Serialization.JavaScriptSerializer).Deserialize($cfg, [System.Collections.Hashtable])
 	$Constants = $GameData.Constants
 	
@@ -167,6 +168,9 @@ function init-ShipCollections
 		, $shipSpecs
 		, $systems
 	)
+	
+	#Convert template's Components dictionary into a KeyValuePair array for consistency
+	$template.Components = $template.Components.GetEnumerator() | ? { $_.Value -ne $null }
 	
 	#First pass -- does not depend on other units' derived values
 	foreach ($ship in $shipSpecs)
@@ -235,8 +239,10 @@ function generate-derivedAttrs()
 	#  to (sqrt(BPMax) * (sqrt(BPMax) + TL -1))
 	if($Constants.TL_addTo_BPLimit -gt 0)
 	{
-		$mS           = $result.BPMax
-		$unit.BPMax = [math]::sqrt($mS) * ([math]::sqrt($mS) + $ship.TL -1)
+		$mS           = $unit.BPMax
+		write-verbose "Vanilla BPMax is $($unit.BPMax)"
+		$unit.BPMax = [Math]::sqrt($mS) * ([Math]::sqrt($mS) + $ship.TL -1)
+		write-verbose "...but TL-adjusted BPMax is $($unit.BPMax)"
 	}
 }
 
@@ -249,9 +255,9 @@ function generate-collectionAttrs()
 	)
 	#Cargo/racks
 	$unit.HUsed     = calculate-ContainerSum -container $unit.Cargo 
-	$unit.HAvail    = (get-ComponentValue -unit $unit -componentKey "H" ) - $unit.HUsed
+	$unit.HAvail    = (get-ComponentValue -unit $unit -componentKey "H" )
 	$unit.SRUsed    = $unit.Racks.Count
-	$unit.SRAvail   = (get-ComponentValue -unit $unit -componentKey "SR") - $unit.SRUsed
+	$unit.SRAvail   = (get-ComponentValue -unit $unit -componentKey "SR")
 		
 }
 
@@ -314,6 +320,8 @@ function get-DerivedValueSet()
 		 $depKey
 	)
 	
+	write-verbose "Deriving values for $depKey"
+	
 	if ($depSpec -eq $null) {
 		Write-Debug "get-derivedValueSet call made with a null lookup table, will return -1" 
 		return -1
@@ -339,7 +347,7 @@ function get-DerivedValueSet()
 		{
 			$resultValue = [Math]::Ceiling($valueEach * $qty)
 			$resultValue
-			write-debug "$EntryName of $qty @$valueEach (rounded up)= $resultValue"
+			write-verbose "$EntryName of $qty @$valueEach (rounded up)= $resultValue"
 		}
 	}
 }
@@ -388,7 +396,6 @@ function replace-IDsWithReferences()
 		if($item.GetType().Name -like "string".GetType().Name)
 		{
 			$newEntry = $referenceCollection | where { $_.ID -eq $item }
-			$newCollection += (nullCoalesce $newEntry, $item)
 			
 			if ($newEntry -eq $null)
 			{
@@ -398,6 +405,7 @@ function replace-IDsWithReferences()
 			else
 			{
 				write-verbose "   Matched $item to $($newEntry.Name)"
+				$newCollection += $newEntry
 			}
 		}
 		else
@@ -440,6 +448,133 @@ function summarize-ComponentData()
 	}
 }
 
+function printShipInfo
+{
+    [cmdletBinding()]
+	param(
+		  $s
+		, [switch] $includeZeroes
+		, [Decimal] $infoEntryLeftSegmentLen  =16
+		, [Decimal] $lineEntryLeftSegmentLen  =19
+		, [Decimal] $lineEntryRightSegmentLen =4
+		, [Decimal] $lineEntryFullLen         =24
+	) 
+	
+	if($includeZeroes -eq $true)
+	{
+		WRITE-VERBOSE ("{0}{1} -- including zeroes!" -f $s.Name, $s.ID )
+	}
+	else
+	{
+		WRITE-VERBOSE ("{0}{1} -- EXcluding zeroes" -f $s.Name, $s.ID )
+	}
+	
+	
+	#Header
+	("{0,-$infoEntryLeftSegmentLen}| {1, -$lineEntryFullLen} |" -f $s.ID, $s.Name )
+	"{0,-$infoEntryLeftSegmentLen}--{1, -$lineEntryFullLen}-|" -f (("-"*$infoEntryLeftSegmentLen), ("-"*$lineEntryFullLen))
+	#Excluded info fields -- fields which either need additional special handling, or aren't to be displayed
+	$exclInfoFields = ("ID", "Name", "Cargo", "Components", "Damage", "DerivedAttrs", "EffectiveAttrs", "HAvail", "HUsed", "SRAvail", "SRUsed", "Location", "Racks", "Valid", "ValidationResult")
+	#Ordered info fields
+	$orderedInfoFields = ("Owner", "Universe", "TL", "BPCost", "BPMax", "Size",  "PDPerMP") 
+	foreach ($infoKey in $orderedInfoFields)
+	{ 
+		"{0,-$infoEntryLeftSegmentLen}| {1, -$lineEntryFullLen} |" -f ($infoKey, (nullCoalesce $s.$infoKey, 0))
+	}
+	
+	#Unordered info fields - just display alphabetically
+    $s.GetEnumerator() | sort key | foreach { 
+		if(-not $orderedInfoFields.Contains($_.Key) -and -not $exclInfoFields.Contains($_.Key) -and ( $includeZeroes -eq $true -or $_.Value -ne 0) ) 
+		{ 
+			"{0,-$infoEntryLeftSegmentLen}| {1, -$lineEntryFullLen} |" -f $_.Key, $_.Value 
+		} 
+	}
+	
+	#Complex info fields
+		write-verbose "Components"
+		print-ListDetail -title "Components" -includeZeroes $includeZeroes -collection $s.Components #-count $s.Components.Count -capacity 99
+		write-verbose "Cargo"
+		print-ListDetail -title "Cargo"      -includeZeroes $includeZeroes -collection $s.Cargo -count $s.HUsed  -capacity $s.HAvail
+		write-verbose "Racks"		
+		print-ListDetail -title "Racks"      -includeZeroes $includeZeroes -collection $s.Racks -count $s.SRUsed -capacity $s.SRAvail
+		#Location
+		#EffectiveAttrs (incl damage annotations)
+		#ValidationResult (incl "Valid" ruling)
+}
+
+function print-listDetail()
+{
+	[CmdletBinding()]
+	param(
+		  $collection
+		, $title
+		, $count
+		, $capacity
+		, $includeZeroes
+		, $infoEntryLeftSegmentLen  = 16
+		, $lineEntryLeftSegmentLen  = 19
+		, $lineEntryRightSegmentLen = 4 
+		, $lineEntryFullLen         = 24
+	)
+	
+	write-verbose "detailing $($collection.Count) list items..."
+	
+	if($collection.Count -gt 0)
+	{
+		$qtyHeader=""
+		if($count -ne $null)
+		{
+			$qtyHeader = "($count"
+			if($capacity -ne $null)
+			{
+				$qtyHeader += "/$capacity"
+			}
+			$qtyHeader += ")"
+		}
+		
+		"{0,-$infoEntryLeftSegmentLen}| {1} |" -f "$title $qtyHeader", ("-"*$lineEntryFullLen)
+		foreach ($entry in $collection)
+		{
+			write-verbose $entry
+			if($entry.Value -eq 0 -and -not $includeZeroes)
+			{
+				write-verbose "$($entry.Key) is zero, skipping)"
+				continue
+			}
+			
+			if($entry.Value -ne $null)
+			{
+				"{0,-$infoEntryLeftSegmentLen}| {1, -$lineEntryLeftSegmentLen}:{2, $lineEntryRightSegmentLen} |" -f "", $entry.Key, $entry.Value 
+			}
+			else
+			{
+				write-verbose "$entry is not a key-value pair"
+				if ($entry.GetType() -eq "string".GetType())
+				{
+					"{0,-$infoEntryLeftSegmentLen}| {1, -$lineEntryFullLen} |" -f "", $entry
+					continue
+				}
+				if ($entry.Name -ne $null)
+				{
+					$lineItemText = $entry.Name
+					if($entry.Qty -ne $null -and $entry.Qty -gt 1)
+					{
+						$lineItemText = "{0}x {1}" -f $entry.Qty, $lineItemText
+					}
+					
+					if($entry.Size -ne $null -and $entry.Size -gt 1)
+					{
+						$lineItemText += " ({0})" -f $entry.Size
+					}
+					"{0,-$infoEntryLeftSegmentLen}| {1, -$lineEntryFullLen} |" -f "", $lineItemText
+					continue
+				}
+			}
+		}
+		"{0,-$infoEntryLeftSegmentLen}| {1} |" -f "", ("-"*$lineEntryFullLen)
+	}
+}
+
 function get-ComponentValue()
 {
 	[cmdletBinding()]
@@ -468,5 +603,10 @@ function nullCoalesce()
 }
 
 $GameData = init -cfg $GameConfig_ReignOfStars
+write-verbose "COMPONENTS"
 write-verbose (summarize-ComponentData -compData $GameData.ComponentSpecs | format-list | out-string )
+write-verbose "SHIPS"
+write-verbose ("`n"+( $GameData.ShipSpecs    | % { "`n"; printShipInfo -s $_ } | out-string))
+write-verbose "TEMPLATE"
+write-verbose ("`n"+"`n"+ (printShipInfo -s $GameData.ShipTemplate -includeZeroes | out-string) )
 $GameData
