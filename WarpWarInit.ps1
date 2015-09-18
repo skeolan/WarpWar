@@ -528,9 +528,10 @@ function printShipInfo
 		print-ListDetail -title "Cargo"      -includeZeroes $includeZeroes -collection $s.Cargo -count $s.HUsed  -capacity $s.HAvail
 		write-debug "Racks"		
 		print-ListDetail -title "Racks"      -includeZeroes $includeZeroes -collection $s.Racks -count $s.SRUsed -capacity $s.SRAvail
-		#Location
-		#EffectiveAttrs (incl damage annotations)
-		#ValidationResult (incl "Valid" ruling)
+		write-debug "Location"
+		print-ListDetail -title "Location"   -includeZeroes $includeZeroes -collection $s.Location
+		write-debug "EffectiveAttrs (incl damage annotations)"
+		write-debug "ValidationResult (incl 'Valid' ruling)"
 }
 
 function print-listDetail()
