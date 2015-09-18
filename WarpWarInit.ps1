@@ -143,6 +143,11 @@ function init-ShipsFromTemplate()
 	$shipT = $template
 	$ships = $shipSpecs
 	$cs = $componentSpec
+
+	#Convert template's Components dictionary into a KeyValuePair array for consistency
+	$shipT.Components = $shipT.Components.GetEnumerator() | ? { $_.Value -ne $null }
+
+
 	
 	foreach ($ship in $ships)
 	{
@@ -169,8 +174,6 @@ function init-ShipCollections
 		, $systems
 	)
 	
-	#Convert template's Components dictionary into a KeyValuePair array for consistency
-	$template.Components = $template.Components.GetEnumerator() | ? { $_.Value -ne $null }
 	
 	#First pass -- does not depend on other units' derived values
 	foreach ($ship in $shipSpecs)
@@ -462,11 +465,11 @@ function printShipInfo
 	
 	if($includeZeroes -eq $true)
 	{
-		WRITE-VERBOSE ("{0}{1} -- including zeroes!" -f $s.Name, $s.ID )
+		WRITE-DEBUG ("{0}{1} -- including zeroes!" -f $s.Name, $s.ID )
 	}
 	else
 	{
-		WRITE-VERBOSE ("{0}{1} -- EXcluding zeroes" -f $s.Name, $s.ID )
+		WRITE-DEBUG ("{0}{1} -- EXcluding zeroes" -f $s.Name, $s.ID )
 	}
 	
 	
@@ -491,11 +494,11 @@ function printShipInfo
 	}
 	
 	#Complex info fields
-		write-verbose "Components"
+		write-debug "Components"
 		print-ListDetail -title "Components" -includeZeroes $includeZeroes -collection $s.Components #-count $s.Components.Count -capacity 99
-		write-verbose "Cargo"
+		write-debug "Cargo"
 		print-ListDetail -title "Cargo"      -includeZeroes $includeZeroes -collection $s.Cargo -count $s.HUsed  -capacity $s.HAvail
-		write-verbose "Racks"		
+		write-debug "Racks"		
 		print-ListDetail -title "Racks"      -includeZeroes $includeZeroes -collection $s.Racks -count $s.SRUsed -capacity $s.SRAvail
 		#Location
 		#EffectiveAttrs (incl damage annotations)
@@ -517,7 +520,7 @@ function print-listDetail()
 		, $lineEntryFullLen         = 24
 	)
 	
-	write-verbose "detailing $($collection.Count) list items..."
+	write-debug "detailing $($collection.Count) list items..."
 	
 	if($collection.Count -gt 0)
 	{
@@ -535,10 +538,10 @@ function print-listDetail()
 		"{0,-$infoEntryLeftSegmentLen}| {1} |" -f "$title $qtyHeader", ("-"*$lineEntryFullLen)
 		foreach ($entry in $collection)
 		{
-			write-verbose $entry
+			write-debug $entry
 			if($entry.Value -eq 0 -and -not $includeZeroes)
 			{
-				write-verbose "$($entry.Key) is zero, skipping)"
+				write-debug "$($entry.Key) is zero, skipping)"
 				continue
 			}
 			
@@ -548,7 +551,7 @@ function print-listDetail()
 			}
 			else
 			{
-				write-verbose "$entry is not a key-value pair"
+				write-debug "$entry is not a key-value pair"
 				if ($entry.GetType() -eq "string".GetType())
 				{
 					"{0,-$infoEntryLeftSegmentLen}| {1, -$lineEntryFullLen} |" -f "", $entry
