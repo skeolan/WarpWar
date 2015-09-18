@@ -53,6 +53,15 @@ $GameConfig_ReignOfStars=@"
 		, "Owner"                  : "Template Owner"
 		, "Location"               : {"ID":"-", "Name":"-", "X":0, "Y":0}
 		, "TL"                     : 1
+		, "BPCost"                 : 0
+		, "BPMax"                  : 0
+		, "Size"                   : 0
+		, "PDPerMP"                : 0
+		, "MP"                     : 0
+		, "HUsed"                  : 0   
+		, "HAvail"                 : 0
+		, "SRUsed"                 : 0
+		, "SRAvail"                : 0
 		, "Components"             : {
 			"PD":0, "B":0, "S":0, "T":0, "M":0, "SR":0, "C":0, "SH":0, "A":0, "E":0, "H":0, "R":0, "CP":0, "SWG":0, "MWG":0, "LWG":0, "GWG":0, "SSB":0, "MSB":0, "LSB":0, "SSS":0, "MSS":0, "LSS":0, "GSS":0
 		}
@@ -236,6 +245,7 @@ function generate-derivedAttrs()
 	$unit.PDPerMP  = ( (get-DerivedValueSet -depKey "PDPerMP" -attrSet $unit.Components -depSpec $componentSpec )  | measure-object -sum).sum	
 	$unit.Size     = ( (get-DerivedValueSet -depKey "Hull" -attrSet $unit.Components -depSpec $componentSpec )  | measure-object -sum).sum	
 	$unit.BPMax    = ( (get-DerivedValueSet -depKey "MaxSize" -attrSet $unit.Components -depSpec $componentSpec )  | measure-object -sum).sum	
+	$unit.MP       = calculate-MovementPoints -drive (get-ComponentValue -unit $unit -componentKey "PD") -efficiency $unit.PDPerMP
 
 	#BPMax is simple for "vanilla" rules; Optional TL rule alters the BP-by-size calculation 
 	#  from the static max-size spec 
@@ -384,6 +394,24 @@ function calculate-ContainerSum()
 	$cSum
 }
 
+function calculate-MovementPoints()
+{
+	[cmdletBinding()]
+	param(
+		  $drive
+		, $efficiency
+	)
+	
+	if ($efficiency -eq 0)
+	{
+		0
+	}
+	else
+	{
+		[Math]::floor($drive / $efficiency)
+	}
+}
+
 function replace-IDsWithReferences()
 {
 	[cmdletBinding()]
@@ -477,9 +505,9 @@ function printShipInfo
 	("{0,-$infoEntryLeftSegmentLen}| {1, -$lineEntryFullLen} |" -f $s.ID, $s.Name )
 	"{0,-$infoEntryLeftSegmentLen}--{1, -$lineEntryFullLen}-|" -f (("-"*$infoEntryLeftSegmentLen), ("-"*$lineEntryFullLen))
 	#Excluded info fields -- fields which either need additional special handling, or aren't to be displayed
-	$exclInfoFields = ("ID", "Name", "Cargo", "Components", "Damage", "DerivedAttrs", "EffectiveAttrs", "HAvail", "HUsed", "SRAvail", "SRUsed", "Location", "Racks", "Valid", "ValidationResult")
+	$exclInfoFields = ("ID", "Name", "Cargo", "Components", "Damage", "DerivedAttrs", "EffectiveAttrs", "HAvail", "HUsed", "MP", "PDPerMP", "SRAvail", "SRUsed", "Location", "Racks", "Valid", "ValidationResult")
 	#Ordered info fields
-	$orderedInfoFields = ("Owner", "Universe", "TL", "BPCost", "BPMax", "Size",  "PDPerMP") 
+	$orderedInfoFields = ("Owner", "Universe", "TL", "BPCost", "BPMax", "Size",  "MP") 
 	foreach ($infoKey in $orderedInfoFields)
 	{ 
 		"{0,-$infoEntryLeftSegmentLen}| {1, -$lineEntryFullLen} |" -f ($infoKey, (nullCoalesce $s.$infoKey, 0))
@@ -608,8 +636,8 @@ function nullCoalesce()
 $GameData = init -cfg $GameConfig_ReignOfStars
 write-verbose "COMPONENTS"
 write-verbose (summarize-ComponentData -compData $GameData.ComponentSpecs | format-list | out-string )
-write-verbose "SHIPS"
-write-verbose ("`n"+( $GameData.ShipSpecs    | % { "`n"; printShipInfo -s $_ } | out-string))
 write-verbose "TEMPLATE"
 write-verbose ("`n"+"`n"+ (printShipInfo -s $GameData.ShipTemplate -includeZeroes | out-string) )
+write-verbose "SHIPS"
+write-verbose ("`n"+( $GameData.ShipSpecs    | % { "`n"; printShipInfo -s $_ } | out-string))
 $GameData
