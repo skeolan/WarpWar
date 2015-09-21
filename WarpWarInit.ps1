@@ -51,7 +51,7 @@ $GameConfig_ReignOfStars=@"
 		  "ID"                     : "TS1-01-001"
 		, "Name"                   : "Template Ship"
 		, "Owner"                  : "Template Owner"
-		, "Location"               : {"ID":"-", "Name":"-", "X":0, "Y":0}
+		, "Location"               : {"ID":"-", "Name":"Origin", "X":0, "Y":0}
 		, "TL"                     : 1
 		, "BPCost"                 : 0
 		, "BPMax"                  : 0
@@ -283,7 +283,16 @@ function generate-effectiveAttrs()
 	$result = @{}
 	
 	#For each nonzero Component, subtract Damage value from Component value
-	$unit.Components | ? { $_.Value  }
+	foreach ($c in $unit.Components.GetEnumerator())
+	{
+		$cKey           = $c.Key
+		$specVal        = $c.Value
+		$dmgVal         = $unit.Damage.($cKey)+0
+		$effectiveValue = ($specVal - $dmgVal)
+		$result.$cKey   = $effectiveValue
+		
+		write-verbose ("{0} spec value is {1}, damage value is {2} -- effective value is {3}" -f $cKey, $specVal, $dmgVal, $effectiveValue )
+	}
 
 	$result
 }
@@ -502,22 +511,22 @@ function printShipInfo
 	
 	
 	#Header
-	("{0,-$infoEntryLeftSegmentLen}| {1, -$lineEntryFullLen} |" -f $s.ID, $s.Name )
-	"{0,-$infoEntryLeftSegmentLen}--{1, -$lineEntryFullLen}-|" -f (("-"*$infoEntryLeftSegmentLen), ("-"*$lineEntryFullLen))
+	("| {0,-$infoEntryLeftSegmentLen}| {1, -$lineEntryFullLen} |" -f $s.ID, $s.Name )
+	"|-{0,-$infoEntryLeftSegmentLen}--{1, -$lineEntryFullLen}-|" -f (("-"*$infoEntryLeftSegmentLen), ("-"*$lineEntryFullLen))
 	#Excluded info fields -- fields which either need additional special handling, or aren't to be displayed
 	$exclInfoFields = ("ID", "Name", "Cargo", "Components", "Damage", "DerivedAttrs", "EffectiveAttrs", "HAvail", "HUsed", "MP", "PDPerMP", "SRAvail", "SRUsed", "Location", "Racks", "Valid", "ValidationResult")
 	#Ordered info fields
 	$orderedInfoFields = ("Owner", "Universe", "TL", "BPCost", "BPMax", "Size",  "MP") 
 	foreach ($infoKey in $orderedInfoFields)
 	{ 
-		"{0,-$infoEntryLeftSegmentLen}| {1, -$lineEntryFullLen} |" -f ($infoKey, (nullCoalesce $s.$infoKey, 0))
+		"| {0,-$infoEntryLeftSegmentLen}| {1, -$lineEntryFullLen} |" -f ($infoKey, (nullCoalesce $s.$infoKey, 0))
 	}
 	
 	#Unordered info fields - just display alphabetically
     $s.GetEnumerator() | sort key | foreach { 
 		if(-not $orderedInfoFields.Contains($_.Key) -and -not $exclInfoFields.Contains($_.Key) -and ( $includeZeroes -eq $true -or $_.Value -ne 0) ) 
 		{ 
-			"{0,-$infoEntryLeftSegmentLen}| {1, -$lineEntryFullLen} |" -f $_.Key, $_.Value 
+			"| {0,-$infoEntryLeftSegmentLen}| {1, -$lineEntryFullLen} |" -f $_.Key, $_.Value 
 		} 
 	}
 	
@@ -532,6 +541,9 @@ function printShipInfo
 		print-ListDetail -title "Location"   -includeZeroes $includeZeroes -collection $s.Location
 		write-debug "EffectiveAttrs (incl damage annotations)"
 		write-debug "ValidationResult (incl 'Valid' ruling)"
+		
+	#Footer
+	"|-{0,-$infoEntryLeftSegmentLen}--{1, -$lineEntryFullLen}-|" -f (("-"*$infoEntryLeftSegmentLen), ("-"*$lineEntryFullLen))
 }
 
 function print-listDetail()
@@ -551,7 +563,7 @@ function print-listDetail()
 	
 	write-debug "detailing $($collection.Count) list items..."
 	
-	if($collection.Count -gt 0)
+	if($collection.Count -gt 0 -or $includeZeroes)
 	{
 		$qtyHeader=""
 		if($count -ne $null)
@@ -564,7 +576,7 @@ function print-listDetail()
 			$qtyHeader += ")"
 		}
 		
-		"{0,-$infoEntryLeftSegmentLen}| {1} |" -f "$title $qtyHeader", ("-"*$lineEntryFullLen)
+		"| {0,-$infoEntryLeftSegmentLen}| {1} |" -f "$title $qtyHeader", ("-"*$lineEntryFullLen)
 		foreach ($entry in $collection)
 		{
 			write-debug $entry
@@ -576,17 +588,19 @@ function print-listDetail()
 			
 			if($entry.Value -ne $null)
 			{
-				"{0,-$infoEntryLeftSegmentLen}| {1, -$lineEntryLeftSegmentLen}:{2, $lineEntryRightSegmentLen} |" -f "", $entry.Key, $entry.Value 
+				"| {0,-$infoEntryLeftSegmentLen}| {1, -$lineEntryLeftSegmentLen}:{2, $lineEntryRightSegmentLen} |" -f "", $entry.Key, $entry.Value 
 			}
 			else
 			{
 				write-debug "$entry is not a key-value pair"
-				if ($entry.GetType() -eq "string".GetType())
+				
+				$lineItemText=""
+				
+				if ($entry.GetType() -eq "string".GetType()) #simple string entry
 				{
-					"{0,-$infoEntryLeftSegmentLen}| {1, -$lineEntryFullLen} |" -f "", $entry
-					continue
+					$lineItemText = $entry
 				}
-				if ($entry.Name -ne $null)
+				if ($entry.Name -ne $null) #Named-object reference entry
 				{
 					$lineItemText = $entry.Name
 					if($entry.Qty -ne $null -and $entry.Qty -gt 1)
@@ -598,12 +612,27 @@ function print-listDetail()
 					{
 						$lineItemText += " ({0})" -f $entry.Size
 					}
-					"{0,-$infoEntryLeftSegmentLen}| {1, -$lineEntryFullLen} |" -f "", $lineItemText
-					continue
 				}
+				if ($title -eq "Location" )
+				{
+					#Valid Possibilities: a) unit has a bare X,Y coordinate or System as its Location
+					#                     b) unit is in Racks or Cargo - its parent is of type (a)
+					#                     c) unit is in Cargo - its parent is in Racks, and ITS parent is of Type (a)
+					#                     d) ???
+					$xCoord = (nullCoalesce($entry.X, $entry.Location.X, $entry.Location.Location.X, "?"))
+					$yCoord = (nullCoalesce($entry.Y, $entry.Location.Y, $entry.Location.Location.Y, "?"))
+					$lineItemText = (($lineItemText, ("<{0},{1}>" -f $xCoord, $yCoord) -join " ").Trim())
+				}
+				
+				#last-ditch, probably won't be pretty
+				if ($lineItemText -eq "")
+				{
+					$lineItemText="{0}" -f "", $entry
+				}
+				
+				"| {0,-$infoEntryLeftSegmentLen}| {1, -$lineEntryFullLen} |" -f "", $lineItemText
 			}
 		}
-		"{0,-$infoEntryLeftSegmentLen}| {1} |" -f "", ("-"*$lineEntryFullLen)
 	}
 }
 
