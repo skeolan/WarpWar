@@ -72,7 +72,6 @@ $GameConfig_ReignOfStars=@"
 		, "Damage"                 : {
 			"PD":0, "B":0, "S":0, "T":0, "M":0, "SR":0, "C":0, "SH":0, "A":0, "E":0, "H":0, "R":0, "CP":0, "SWG":0, "MWG":0, "LWG":0, "GWG":0, "SSB":0, "MSB":0, "LSB":0, "SSS":0, "MSS":0, "LSS":0, "GSS":0
 		}
-		, "DerivedAttrs"           : []
 		, "EffectiveAttrs"         : []
 		, "ValidationResult"       : []
 	}
