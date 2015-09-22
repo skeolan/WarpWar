@@ -22,30 +22,30 @@ $GameConfig_ReignOfStars=@"
 		, "TL_addTo_Damage"  :0  
 	}
 	, "ComponentSpecs": [
-		  { "Name":"PD" , "BPCost": 1    , "Damage" : 0, "RoF":0, "Defense": 0, "ECM":0, "Hull":0, "MaxSize":  0, "PDPerMP":0, "Power":1, "CompType":"Power"      , "Info" : { "LongName":"Power/Drive"                , "Description":"Total effective strength of a ship's engines."                                        } }
-		, { "Name":"B"  , "BPCost": 1    , "Damage" : 1, "RoF":1                                                                        , "CompType":"Weapon"     , "Info" : { "LongName":"Beams"                      , "Description":"Project a beam of destructive energy at a target."                                    } }
-		, { "Name":"C"  , "BPCost": 1                  , "RoF":3                                                                        , "CompType":"Weapon"     , "Info" : { "LongName":"Cannons"                    , "Description":"Launch Shells. Each Cannon may fire either 1, 2 or 3 Shells per combat round."        } }
-		, { "Name":"T"  , "BPCost": 1                  , "RoF":1                                                                        , "CompType":"Weapon"     , "Info" : { "LongName":"Tubes"                      , "Description":"Launch Missiles. Each Tube may launch one Missile per combat round."                  } }
-		, { "Name":"SH" , "BPCost": 0.167, "Damage" : 1                                                                                 , "CompType":"Ammunition" , "Info" : { "LongName":"Shells"                     , "Description":"Fired by Cannons."                                                                    } }
-		, { "Name":"M"  , "BPCost": 0.333, "Damage" : 2                                                                                 , "CompType":"Ammunition" , "Info" : { "LongName":"Missiles"                   , "Description":"Fired by Tubes."                                                                      } }
-		, { "Name":"S"  , "BPCost": 1                           , "Defense": 1                                                          , "CompType":"Defense"    , "Info" : { "LongName":"Screens"                    , "Description":"Ability of a ship to surround itself with a protective energy screen."                } }
-		, { "Name":"A"  , "BPCost": 0.5                         , "Defense": 0                                                          , "CompType":"Defense"    , "Info" : { "LongName":"Armor"                      , "Description":"Ablative hull reinforcement."                                                         } }
-		, { "Name":"E"  , "BPCost": 1                           , "Defense": 0, "ECM":1                                                 , "CompType":"Defense"    , "Info" : { "LongName":"ECM"                        , "Description":"Electronic countermeasures. ECM points alter attacking Missiles' effective Drive."    } }
-		, { "Name":"SR" , "BPCost": 1                                                                                                   , "CompType":"Carry"      , "Info" : { "LongName":"Systemship Rack"            , "Description":"Let a Warpship carry Systemships."                                                    } }
-		, { "Name":"H"  , "BPCost": 0.1                                                                                                 , "CompType":"Carry"      , "Info" : { "LongName":"Hold"                       , "Description":"Contain cargo and/or BPs."                                                            } }
-		, { "Name":"R"  , "BPCost": 5                                                                                                   , "CompType":"Utility"    , "Info" : { "LongName":"Repair"                     , "Description":"Use BPs in Hold or from Star to repair self or others during the build/repair event." } }
-		, { "Name":"CP" , "BPCost":15                                                                                                   , "CompType":"Utility"    , "Info" : { "LongName":"Colony Pod"                 , "Description":"Establishes a new Colony when deployed."                                              } }
-		, { "Name":"SSB", "BPCost": 7                                                  , "Hull": 8, "MaxSize": 64                       , "CompType":"Hull"       , "Info" : { "LongName":"Small Starbase Hull"        , "Description":"For bases BP 64(H 8) or smaller. (Defsat)"                                            } }
-		, { "Name":"MSB", "BPCost":13                                                  , "Hull":12, "MaxSize":144                       , "CompType":"Hull"       , "Info" : { "LongName":"Medium Starbase Hull"       , "Description":"For bases BP144(H12) or smaller. (Station)"                                           } }
-		, { "Name":"LSB", "BPCost":25                                                  , "Hull":20, "MaxSize":400                       , "CompType":"Hull"       , "Info" : { "LongName":"Large Starbase Hull"        , "Description":"For bases BP400(H20) or smaller. (Fortress)"                                          } }
-		, { "Name":"SWG", "BPCost": 3                                                  , "Hull": 3, "MaxSize":  9, "PDPerMP":1          , "CompType":"Hull"       , "Info" : { "LongName":"Small Warp Generator Hull"  , "Description":"For ships BP  9(H 3) or smaller. (Escort)"                                            } }
-		, { "Name":"MWG", "BPCost": 6                                                  , "Hull": 6, "MaxSize": 36, "PDPerMP":2          , "CompType":"Hull"       , "Info" : { "LongName":"Medium Warp Generator Hull" , "Description":"For ships BP 36(H 6) or smaller. (Cruiser)"                                           } }
-		, { "Name":"LWG", "BPCost": 9                                                  , "Hull": 8, "MaxSize": 64, "PDPerMP":3          , "CompType":"Hull"       , "Info" : { "LongName":"Large Warp Generator Hull"  , "Description":"For ships BP 64(H 8) or smaller. (Capital)"                                           } }
-		, { "Name":"GWG", "BPCost":12                                                  , "Hull":10, "MaxSize":100, "PDPerMP":3          , "CompType":"Hull"       , "Info" : { "LongName":"Giant Warp Generator Hull"  , "Description":"For ships BP100(H10) or smaller. (Supercapital)"                                      } }
-		, { "Name":"SSS", "BPCost": 0                                                  , "Hull": 3, "MaxSize":  9                       , "CompType":"Hull"       , "Info" : { "LongName":"Small System Ship Hull"     , "Description":"For ships BP  9(H 3) or smaller. (Fighter/Escort)"                                    } }
-		, { "Name":"MSS", "BPCost": 2                                                  , "Hull": 6, "MaxSize": 36                       , "CompType":"Hull"       , "Info" : { "LongName":"Medium System Ship Hull"    , "Description":"For ships BP 36(H 6) or smaller. (Cruiser)"                                           } }
-		, { "Name":"LSS", "BPCost": 4                                                  , "Hull": 8, "MaxSize": 64                       , "CompType":"Hull"       , "Info" : { "LongName":"Large System Ship Hull"     , "Description":"For ships BP 64(H 8) or smaller. (Capital)"                                           } }
-		, { "Name":"GSS", "BPCost": 6                                                  , "Hull":10, "MaxSize":100                       , "CompType":"Hull"       , "Info" : { "LongName":"Giant System Ship Hull"     , "Description":"For ships BP100(H10) or smaller. (Supercapital)"                                      } }
+		  { "Name":"PD" , "BPCost": 1    , "Damage" : 0, "RoF":0, "Defense": 0, "ECM":0, "Hull":0, "MaxSize":  0, "PDPerMP":0, "Cargo": 0, "Power":1, "CompType":"Power"      , "Info" : { "LongName":"Power/Drive"                , "Description":"Total effective strength of a ship's engines."                                        } }
+		, { "Name":"B"  , "BPCost": 1    , "Damage" : 1, "RoF":1                                                                                    , "CompType":"Weapon"     , "Info" : { "LongName":"Beams"                      , "Description":"Project a beam of destructive energy at a target."                                    } }
+		, { "Name":"C"  , "BPCost": 1                  , "RoF":3                                                                                    , "CompType":"Weapon"     , "Info" : { "LongName":"Cannons"                    , "Description":"Launch Shells. Each Cannon may fire either 1, 2 or 3 Shells per combat round."        } }
+		, { "Name":"T"  , "BPCost": 1                  , "RoF":1                                                                                    , "CompType":"Weapon"     , "Info" : { "LongName":"Tubes"                      , "Description":"Launch Missiles. Each Tube may launch one Missile per combat round."                  } }
+		, { "Name":"SH" , "BPCost": 0.167, "Damage" : 1                                                                                             , "CompType":"Ammunition" , "Info" : { "LongName":"Shells"                     , "Description":"Fired by Cannons."                                                                    } }
+		, { "Name":"M"  , "BPCost": 0.333, "Damage" : 2                                                                                             , "CompType":"Ammunition" , "Info" : { "LongName":"Missiles"                   , "Description":"Fired by Tubes."                                                                      } }
+		, { "Name":"S"  , "BPCost": 1                           , "Defense": 1                                                                      , "CompType":"Defense"    , "Info" : { "LongName":"Screens"                    , "Description":"Ability of a ship to surround itself with a protective energy screen."                } }
+		, { "Name":"A"  , "BPCost": 0.5                         , "Defense": 0                                                                      , "CompType":"Defense"    , "Info" : { "LongName":"Armor"                      , "Description":"Ablative hull reinforcement."                                                         } }
+		, { "Name":"E"  , "BPCost": 1                           , "Defense": 0, "ECM":1                                                             , "CompType":"Defense"    , "Info" : { "LongName":"ECM"                        , "Description":"Electronic countermeasures. ECM points alter attacking Missiles' effective Drive."    } }
+		, { "Name":"SR" , "BPCost": 1                                                                                                               , "CompType":"Carry"      , "Info" : { "LongName":"Systemship Rack"            , "Description":"Let a Warpship carry Systemships."                                                    } }
+		, { "Name":"H"  , "BPCost": 1                                                                                        , "Cargo":10           , "CompType":"Carry"      , "Info" : { "LongName":"Hold"                       , "Description":"Contain cargo and/or BPs."                                                            } }
+		, { "Name":"R"  , "BPCost": 5                                                                                                               , "CompType":"Utility"    , "Info" : { "LongName":"Repair"                     , "Description":"Use BPs in Hold or from Star to repair self or others during the build/repair event." } }
+		, { "Name":"CP" , "BPCost":15                                                                                                               , "CompType":"Utility"    , "Info" : { "LongName":"Colony Pod"                 , "Description":"Establishes a new Colony when deployed."                                              } }
+		, { "Name":"SSB", "BPCost": 7                                                  , "Hull": 8, "MaxSize": 64                                   , "CompType":"Hull"       , "Info" : { "LongName":"Small Starbase Hull"        , "Description":"For bases BP 64(H 8) or smaller. (Defsat)"                                            } }
+		, { "Name":"MSB", "BPCost":13                                                  , "Hull":12, "MaxSize":144                                   , "CompType":"Hull"       , "Info" : { "LongName":"Medium Starbase Hull"       , "Description":"For bases BP144(H12) or smaller. (Station)"                                           } }
+		, { "Name":"LSB", "BPCost":25                                                  , "Hull":20, "MaxSize":400                                   , "CompType":"Hull"       , "Info" : { "LongName":"Large Starbase Hull"        , "Description":"For bases BP400(H20) or smaller. (Fortress)"                                          } }
+		, { "Name":"SWG", "BPCost": 3                                                  , "Hull": 3, "MaxSize":  9, "PDPerMP":1                      , "CompType":"Hull"       , "Info" : { "LongName":"Small Warp Generator Hull"  , "Description":"For ships BP  9(H 3) or smaller. (Escort)"                                            } }
+		, { "Name":"MWG", "BPCost": 6                                                  , "Hull": 6, "MaxSize": 36, "PDPerMP":2                      , "CompType":"Hull"       , "Info" : { "LongName":"Medium Warp Generator Hull" , "Description":"For ships BP 36(H 6) or smaller. (Cruiser)"                                           } }
+		, { "Name":"LWG", "BPCost": 9                                                  , "Hull": 8, "MaxSize": 64, "PDPerMP":3                      , "CompType":"Hull"       , "Info" : { "LongName":"Large Warp Generator Hull"  , "Description":"For ships BP 64(H 8) or smaller. (Capital)"                                           } }
+		, { "Name":"GWG", "BPCost":12                                                  , "Hull":10, "MaxSize":100, "PDPerMP":3                      , "CompType":"Hull"       , "Info" : { "LongName":"Giant Warp Generator Hull"  , "Description":"For ships BP100(H10) or smaller. (Supercapital)"                                      } }
+		, { "Name":"SSS", "BPCost": 0                                                  , "Hull": 3, "MaxSize":  9                                   , "CompType":"Hull"       , "Info" : { "LongName":"Small System Ship Hull"     , "Description":"For ships BP  9(H 3) or smaller. (Fighter/Escort)"                                    } }
+		, { "Name":"MSS", "BPCost": 2                                                  , "Hull": 6, "MaxSize": 36                                   , "CompType":"Hull"       , "Info" : { "LongName":"Medium System Ship Hull"    , "Description":"For ships BP 36(H 6) or smaller. (Cruiser)"                                           } }
+		, { "Name":"LSS", "BPCost": 4                                                  , "Hull": 8, "MaxSize": 64                                   , "CompType":"Hull"       , "Info" : { "LongName":"Large System Ship Hull"     , "Description":"For ships BP 64(H 8) or smaller. (Capital)"                                           } }
+		, { "Name":"GSS", "BPCost": 6                                                  , "Hull":10, "MaxSize":100                                   , "CompType":"Hull"       , "Info" : { "LongName":"Giant System Ship Hull"     , "Description":"For ships BP100(H10) or smaller. (Supercapital)"                                      } }
 	]
 	, "ShipTemplate": {
 		  "ID"                     : "TS1-01-001"
@@ -98,7 +98,7 @@ $GameConfig_ReignOfStars=@"
 		    "ID"        : "ISS-0A-001"
 		  , "Name"      : "Portero-1"
 		  , "Owner"     : "Empire"
-		  , "Components": { "SSS":1, "PD":4, "S":1, "H":20 }
+		  , "Components": { "SSS":1, "PD":4, "S":1, "H":2 }
 		  , "Cargo"     : [{ "Name":"BP", "Size":1, "Qty":5 }, { "Name":"Fifth Space Marines", "Size":5, "Qty":1 }, "ISB-0A-00A"]
 		  , "Location"  : "IWS-01-002"
 		}
@@ -108,6 +108,7 @@ $GameConfig_ReignOfStars=@"
 		  , "Owner"     : "Empire"
 		  , "Components": { "SSB":1, "PD":4, "S":2, "B":2 }
 		  , "Location"  : "ISS-0A-001"
+		  , "Damage"    : { "PD":2, "S":1, "B":2, "Core":1 }
 		}
 	]
 	, "Systems": [
@@ -268,7 +269,7 @@ function generate-collectionAttrs()
 	)
 	#Cargo/racks
 	$unit.HUsed     = calculate-ContainerSum -container $unit.Cargo 
-	$unit.HAvail    = (get-ComponentValue -unit $unit -componentKey "H" )
+	$unit.HAvail    = (get-ComponentValue -unit $unit -componentKey "H" ) * ($componentSpec | ? { $_.Name -eq "H" } ).Cargo
 	$unit.SRUsed    = $unit.Racks.Count
 	$unit.SRAvail   = (get-ComponentValue -unit $unit -componentKey "SR")
 		
@@ -287,7 +288,7 @@ function generate-effectiveAttrs()
 	{
 		$cKey           = $c.Key
 		$specVal        = $c.Value
-		$dmgVal         = $unit.Damage.($cKey)+0
+		$dmgVal         = ($unit.Damage.$cKey)+0
 		$effectiveValue = ($specVal - $dmgVal)
 		$result.$cKey   = $effectiveValue
 		
@@ -321,7 +322,7 @@ function remove-ExtraProperties()
 		, $child  #Collection should not contain any properties absent from parent
 	)
 	
-		$collectionKeys  = $parent.Keys
+		$collectionKeys  = $parent.Key
 		$childVals = @{}
 		foreach ($cKey in $collectionKeys)
 		{
@@ -494,10 +495,10 @@ function printShipInfo
 	param(
 		  $s
 		, [switch] $includeZeroes
-		, [Decimal] $infoEntryLeftSegmentLen  =16
+		, [Decimal] $infoEntryLeftSegmentLen  =20
 		, [Decimal] $lineEntryLeftSegmentLen  =19
-		, [Decimal] $lineEntryRightSegmentLen =4
-		, [Decimal] $lineEntryFullLen         =24
+		, [Decimal] $lineEntryRightSegmentLen =15
+		, [Decimal] $lineEntryFullLen         =35
 	) 
 	
 	if($includeZeroes -eq $true)
@@ -532,7 +533,7 @@ function printShipInfo
 	
 	#Complex info fields
 		write-debug "Components"
-		print-ListDetail -title "Components" -includeZeroes $includeZeroes -collection $s.Components #-count $s.Components.Count -capacity 99
+		print-ListDetail -title "Components" -includeZeroes $includeZeroes -collection $s.Components -damageCollection $s.Damage #-count $s.Components.Count -capacity 99
 		write-debug "Cargo"
 		print-ListDetail -title "Cargo"      -includeZeroes $includeZeroes -collection $s.Cargo -count $s.HUsed  -capacity $s.HAvail
 		write-debug "Racks"		
@@ -555,10 +556,11 @@ function print-listDetail()
 		, $count
 		, $capacity
 		, $includeZeroes
-		, $infoEntryLeftSegmentLen  = 16
+		, $infoEntryLeftSegmentLen  = 20
 		, $lineEntryLeftSegmentLen  = 19
-		, $lineEntryRightSegmentLen = 4 
-		, $lineEntryFullLen         = 24
+		, $lineEntryRightSegmentLen = 15
+		, $lineEntryFullLen         = 35
+		, $damageCollection         = $null
 	)
 	
 	write-debug "detailing $($collection.Count) list items..."
@@ -586,31 +588,49 @@ function print-listDetail()
 				continue
 			}
 			
+			
 			if($entry.Value -ne $null)
 			{
-				"| {0,-$infoEntryLeftSegmentLen}| {1, -$lineEntryLeftSegmentLen}:{2, $lineEntryRightSegmentLen} |" -f "", $entry.Key, $entry.Value 
+				$eKey    = $entry.Key
+				$eValTxt = $entry.Value
+				
+				
+				if($damageCollection -ne $null -and $damageCollection.$eKey -ne $null -and $damageCollection.$eKey -gt 0)
+				{
+					$eValTxt = "$eValTxt {0,8}" -f "(HIT:$($damageCollection.$eKey))"
+				}
+				else
+				{
+					$eValTxt = "$eValTxt {0,8}" -f ""
+				}
+				"| {0,-$infoEntryLeftSegmentLen}| {1, -$lineEntryLeftSegmentLen}:{2, $lineEntryRightSegmentLen} |" -f "", $entry.Key, $eValTxt
 			}
 			else
 			{
 				write-debug "$entry is not a key-value pair"
 				
-				$lineItemText=""
+				$lineItemTitle = ""
+				$lineItemInfo  = ""
 				
 				if ($entry.GetType() -eq "string".GetType()) #simple string entry
 				{
-					$lineItemText = $entry
+					$lineItemTitle = $entry
 				}
 				if ($entry.Name -ne $null) #Named-object reference entry
 				{
-					$lineItemText = $entry.Name
+					$lineItemTitle = "{0}" -f $entry.Name
 					if($entry.Qty -ne $null -and $entry.Qty -gt 1)
 					{
-						$lineItemText = "{0}x {1}" -f $entry.Qty, $lineItemText
+						$lineItemTitle = "{0}x {1}" -f $entry.Qty, $lineItemTitle
 					}
 					
-					if($entry.Size -ne $null -and $entry.Size -gt 1)
+					if($entry.Size -ne $null -or $entry.Qty -ne $null)
 					{
-						$lineItemText += " ({0})" -f $entry.Size
+						$lineItemInfo += "{0, $lineEntryRightSegmentLen}" -f ("("+((nullCoalesce $entry.Size, 1) * (nullCoalesce $entry.Qty, 1))+")")
+					}
+					else
+					{
+						$lineItemInfo += " {0, $lineEntryRightSegmentLen}" -f ""
 					}
 				}
 				if ($title -eq "Location" )
@@ -621,16 +641,16 @@ function print-listDetail()
 					#                     d) ???
 					$xCoord = (nullCoalesce($entry.X, $entry.Location.X, $entry.Location.Location.X, "?"))
 					$yCoord = (nullCoalesce($entry.Y, $entry.Location.Y, $entry.Location.Location.Y, "?"))
-					$lineItemText = (($lineItemText, ("<{0},{1}>" -f $xCoord, $yCoord) -join " ").Trim())
+					$lineItemInfo = ((("<{0},{1}>" -f $xCoord, $yCoord) -join " ").Trim())
 				}
 				
 				#last-ditch, probably won't be pretty
-				if ($lineItemText -eq "")
+				if ($lineItemTitle -eq "")
 				{
-					$lineItemText="{0}" -f "", $entry
+					$lineItemTitle="{0}" -f "", $entry
 				}
 				
-				"| {0,-$infoEntryLeftSegmentLen}| {1, -$lineEntryFullLen} |" -f "", $lineItemText
+				"| {0,-$infoEntryLeftSegmentLen}| {1, -$lineEntryLeftSegmentLen} {2, $lineEntryRightSegmentLen} |" -f "", $lineItemTitle, $lineItemInfo
 			}
 		}
 	}
