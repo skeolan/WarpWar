@@ -580,7 +580,7 @@ function print-ComponentDetail()
 	if($collection.Count -gt 0 -or $includeZeroes)
 	{
 		$qtyHeader=""		
-		"| {0,-$infoEntryLeftSegmentLen}| {1} |" -f "$title $qtyHeader", ("-"*$lineEntryFullLen)
+		"| {0,-$infoEntryLeftSegmentLen}| {1, $lineEntryFullLen } |" -f "$title $qtyHeader", ("Spec | Dmg | Eff | Pwr ")
 	}
 	
 	foreach ($entry in $collection)
@@ -679,7 +679,7 @@ function print-ListDetail()
 			$qtyHeader += ")"
 		}
 		
-		"| {0,-$infoEntryLeftSegmentLen}| {1} |" -f "$title $qtyHeader", ("-"*$lineEntryFullLen)
+		"| {0,-$infoEntryLeftSegmentLen}| {1, -$lineEntryLeftSegmentLen}-{2, $lineEntryRightSegmentLen} |" -f "$title $qtyHeader", ("-"*$lineEntryLeftSegmentLen), ("-"*$lineEntryRightSegmentLen)
 		foreach ($entry in $collection)
 		{
 			write-debug $entry
