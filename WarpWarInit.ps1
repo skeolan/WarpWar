@@ -92,6 +92,7 @@ $GameConfig_ReignOfStars=@"
 		  , "Components": { "SWG":1, "PD":4, "B":2, "S":1, "SR":2 }
 		  , "Racks"     : ["ISS-0A-001", "BOGUS"]
 		  , "Location"  : "SYS001"
+		  , "Damage"    : { "SR":1 }
 		}
 		, {
 		    "ID"        : "ISS-0A-001"
@@ -105,9 +106,9 @@ $GameConfig_ReignOfStars=@"
 		    "ID"        : "ISB-0A-00A"
 		  , "Name"      : "Orbituo-1"
 		  , "Owner"     : "Empire"
-		  , "Components": { "SSB":1, "PD":4, "S":2, "B":2 }
+		  , "Components": { "SSB":1, "PD":4, "B":1, "S":2 }
 		  , "Location"  : "ISS-0A-001"
-		  , "Damage"    : { "PD":2, "S":1, "B":2, "Core":1 }
+		  , "Damage"    : { "PD":4, "B":2, "SSB":4, "Junk":3, "S":1 }
 		}
 	]
 	, "Systems": [
@@ -201,11 +202,11 @@ function init-ShipCollections
 		$ship.Location   = (replace-IDsWithReferences -collection $ship.Location -referenceCollection @($systems + $shipSpecs))
 		write-verbose "Location is now $($ship.Location)"
 		
+		write-verbose "Generate effective attribute values from components, damage"
+		$ship.EffectiveAttrs   = (generate-effectiveAttrs -unit $ship -components $componentSpec)
+
 		write-verbose "Generate derived attributes from components, racks, cargo"
 		generate-derivedAttrs -unit $ship -componentSpec $componentSpec
-
-		write-verbose "Generate effective attribute values from components, damage"
-		$ship.EffectiveAttrs   = (generate-effectiveAttrs -unit $ship)
 
 		write-verbose "Generate validation errors from components, racks, cargo, damage"
 		$ship.ValidationResult = (generate-validationResult -unit $ship)
@@ -268,9 +269,9 @@ function generate-collectionAttrs()
 	)
 	#Cargo/racks
 	$unit.HUsed     = calculate-ContainerSum -container $unit.Cargo 
-	$unit.HAvail    = (get-ComponentValue -unit $unit -componentKey "H" ) * ($componentSpec | ? { $_.Name -eq "H" } ).Cargo
+	$unit.HAvail    = ($unit.EffectiveAttrs.H) * ($componentSpec | ? { $_.Name -eq "H" } ).Cargo
 	$unit.SRUsed    = $unit.Racks.Count
-	$unit.SRAvail   = (get-ComponentValue -unit $unit -componentKey "SR")
+	$unit.SRAvail   = $unit.EffectiveAttrs.SR
 		
 }
 
@@ -278,7 +279,8 @@ function generate-effectiveAttrs()
 {
 	[cmdletBinding()]
 	param (
-		$unit
+		  $unit
+		, $componentSpec
 	)
 	$result = @{}
 	
@@ -286,12 +288,20 @@ function generate-effectiveAttrs()
 	foreach ($c in $unit.Components.GetEnumerator())
 	{
 		$cKey           = $c.Key
-		$specVal        = $c.Value
+		$cVal           = $c.Value
+		$cSpec          = $componentSpec | ? { $_.Name -eq $cKey }
+		
+		
+		if($cSpec.Hull -gt 0)
+		{
+			$cVal = $cSpec.Hull * $c.Value
+		}
+		
 		$dmgVal         = ($unit.Damage.$cKey)+0
-		$effectiveValue = ($specVal - $dmgVal)
+		$effectiveValue = ($cVal - $dmgVal)
 		$result.$cKey   = $effectiveValue
 		
-		write-verbose ("{0} spec value is {1}, damage value is {2} -- effective value is {3}" -f $cKey, $specVal, $dmgVal, $effectiveValue )
+		write-verbose ("{0} spec value is {1}, damage value is {2} -- effective value is {3}" -f $cKey, $cVal, $dmgVal, $effectiveValue )
 	}
 
 	$result
@@ -306,9 +316,15 @@ function generate-validationResult()
 	
 	$result = @()
 	
-	#SRAvail should be nonnegative
-	#HAvail should be nonnegative
-	#BPCost should be less than BPMax
+	#SRUsed - SRAvail should be nonnegative
+	#HUsed  - HAvail  should be nonnegative
+	#BPMax  - BPCost  should be nonnegative
+	
+	#EffectiveAttrs should each be nonnegative
+	
+	#Units in your Racks should have Size no larger than you
+	#Units in your Racks should have you as their Location
+	#
 
 	$result
 }
@@ -532,13 +548,13 @@ function printShipInfo
 	
 	#Complex info fields
 		write-debug "Components"
-		print-ListDetail -title "Components" -includeZeroes $includeZeroes -collection $s.Components -damageCollection $s.Damage #-count $s.Components.Count -capacity 99
+		print-ComponentDetail -title "Components" -collection $s.Components -effectiveCollection $s.EffectiveAttrs -damageCollection $s.Damage -includeZeroes $includeZeroes 
 		write-debug "Cargo"
-		print-ListDetail -title "Cargo"      -includeZeroes $includeZeroes -collection $s.Cargo -count $s.HUsed  -capacity $s.HAvail
+		print-ListDetail      -title "Cargo"      -collection $s.Cargo -count $s.HUsed  -capacity $s.HAvail
 		write-debug "Racks"		
-		print-ListDetail -title "Racks"      -includeZeroes $includeZeroes -collection $s.Racks -count $s.SRUsed -capacity $s.SRAvail
+		print-ListDetail      -title "Racks"      -collection $s.Racks -count $s.SRUsed -capacity $s.SRAvail
 		write-debug "Location"
-		print-ListDetail -title "Location"   -includeZeroes $includeZeroes -collection $s.Location
+		print-LocationDetail  -title "Location"   -location $s.Location
 		write-debug "EffectiveAttrs (incl damage annotations)"
 		write-debug "ValidationResult (incl 'Valid' ruling)"
 		
@@ -546,7 +562,94 @@ function printShipInfo
 	"|-{0,-$infoEntryLeftSegmentLen}--{1, -$lineEntryFullLen}-|" -f (("-"*$infoEntryLeftSegmentLen), ("-"*$lineEntryFullLen))
 }
 
-function print-listDetail()
+function print-ComponentDetail()
+{
+	[CmdletBinding()]
+	param(
+		  $collection
+		, $damageCollection         = $null
+		, $effectiveCollection      = $null
+		, $title                    = "Components"
+		, $includeZeroes            = $false
+		, $infoEntryLeftSegmentLen  = 20
+		, $lineEntryLeftSegmentLen  = 19
+		, $lineEntryRightSegmentLen = 15
+		, $lineEntryFullLen         = 35
+	)
+	
+	if($collection.Count -gt 0 -or $includeZeroes)
+	{
+		$qtyHeader=""		
+		"| {0,-$infoEntryLeftSegmentLen}| {1} |" -f "$title $qtyHeader", ("-"*$lineEntryFullLen)
+	}
+	
+	foreach ($entry in $collection)
+	{
+		write-debug $entry
+		if($entry.Value -eq 0 -and -not $includeZeroes)
+		{
+			write-debug "$($entry.Key) is zero, skipping)"
+			continue
+		}
+		
+		if($entry.Value -ne $null)
+		{
+			$eKey    = $entry.Key
+			$eValTxt = $entry.Value
+			
+			if($effectiveCollection -ne $null -and $effectiveCollection.$eKey -ne $null)
+			{
+				$eValTxt = "{0}/{1}" -f $effectiveCollection.$eKey, ($effectiveCollection.$eKey+$damageCollection.$eKey)
+			}
+			
+			if($damageCollection -ne $null -and $damageCollection.$eKey -ne $null -and $damageCollection.$eKey -gt 0)
+			{
+				$eValTxt = "$eValTxt {0,8}" -f "(HIT:$($damageCollection.$eKey))"
+			}
+			else
+			{
+				$eValTxt = "$eValTxt {0,8}" -f ""
+			}
+			"| {0,-$infoEntryLeftSegmentLen}| {1, -$lineEntryLeftSegmentLen}:{2, $lineEntryRightSegmentLen} |" -f "", $entry.Key, $eValTxt
+		}
+	}
+	
+}
+
+function print-LocationDetail()
+{
+	[CmdletBinding()]
+	param(
+		  $location
+		, $title
+		, $infoEntryLeftSegmentLen  = 20
+		, $lineEntryLeftSegmentLen  = 19
+		, $lineEntryRightSegmentLen = 15
+		, $lineEntryFullLen         = 35
+	)
+
+	if($location -ne $null -or $includeZeroes)
+	{
+		$qtyHeader=""		
+		$lineItemTitle = ""
+		$lineItemInfo  = ""
+		
+		#Valid Possibilities: a) unit has a bare X,Y coordinate or System as its Location
+		#                     b) unit is in Racks or Cargo - its parent is of type (a)
+		#                     c) unit is in Cargo - its parent is in Racks, and ITS parent is of Type (a)
+		#                     d) ???
+		$xCoord = (nullCoalesce($location.X, $location.Location.X, $location.Location.Location.X, "?"))
+		$yCoord = (nullCoalesce($location.Y, $location.Location.Y, $location.Location.Location.Y, "?"))
+
+		$lineItemTitle = "{0}" -f (nullCoalesce $location.Name, "")
+		$lineItemInfo = ((("<{0},{1}>" -f $xCoord, $yCoord) -join " ").Trim())
+		
+		"| {0,-$infoEntryLeftSegmentLen}| {1, -$lineEntryLeftSegmentLen}-{2, $lineEntryRightSegmentLen} |" -f "$title $qtyHeader", ("-"*$lineEntryLeftSegmentLen), ("-"*$lineEntryRightSegmentLen)
+		"| {0,-$infoEntryLeftSegmentLen}| {1, -$lineEntryLeftSegmentLen} {2, $lineEntryRightSegmentLen} |" -f "", $lineItemTitle, $lineItemInfo
+	}
+}
+
+function print-ListDetail()
 {
 	[CmdletBinding()]
 	param(
@@ -559,7 +662,6 @@ function print-listDetail()
 		, $lineEntryLeftSegmentLen  = 19
 		, $lineEntryRightSegmentLen = 15
 		, $lineEntryFullLen         = 35
-		, $damageCollection         = $null
 	)
 	
 	write-debug "detailing $($collection.Count) list items..."
@@ -587,70 +689,38 @@ function print-listDetail()
 				continue
 			}
 			
+			$lineItemTitle = ""
+			$lineItemInfo  = ""
 			
-			if($entry.Value -ne $null)
+			if ($entry.GetType() -eq "string".GetType()) #simple string entry
 			{
-				$eKey    = $entry.Key
-				$eValTxt = $entry.Value
-				
-				
-				if($damageCollection -ne $null -and $damageCollection.$eKey -ne $null -and $damageCollection.$eKey -gt 0)
+				$lineItemTitle = $entry
+			}
+			if ($entry.Name -ne $null) #Named-object reference entry
+			{
+				$lineItemTitle = "{0}" -f $entry.Name
+				if($entry.Qty -ne $null -and $entry.Qty -gt 1)
 				{
-					$eValTxt = "$eValTxt {0,8}" -f "(HIT:$($damageCollection.$eKey))"
+					$lineItemTitle = "{0}x {1}" -f $entry.Qty, $lineItemTitle
+				}
+				
+				if($entry.Size -ne $null -or $entry.Qty -ne $null)
+				{
+					$lineItemInfo += "{0, $lineEntryRightSegmentLen}" -f ("("+((nullCoalesce $entry.Size, 1) * (nullCoalesce $entry.Qty, 1))+")")
 				}
 				else
 				{
-					$eValTxt = "$eValTxt {0,8}" -f ""
+					$lineItemInfo += " {0, $lineEntryRightSegmentLen}" -f ""
 				}
-				"| {0,-$infoEntryLeftSegmentLen}| {1, -$lineEntryLeftSegmentLen}:{2, $lineEntryRightSegmentLen} |" -f "", $entry.Key, $eValTxt
 			}
-			else
+			
+			#last-ditch, probably won't be pretty
+			if ($lineItemTitle -eq "")
 			{
-				write-debug "$entry is not a key-value pair"
-				
-				$lineItemTitle = ""
-				$lineItemInfo  = ""
-				
-				if ($entry.GetType() -eq "string".GetType()) #simple string entry
-				{
-					$lineItemTitle = $entry
-				}
-				if ($entry.Name -ne $null) #Named-object reference entry
-				{
-					$lineItemTitle = "{0}" -f $entry.Name
-					if($entry.Qty -ne $null -and $entry.Qty -gt 1)
-					{
-						$lineItemTitle = "{0}x {1}" -f $entry.Qty, $lineItemTitle
-					}
-					
-					if($entry.Size -ne $null -or $entry.Qty -ne $null)
-					{
-						$lineItemInfo += "{0, $lineEntryRightSegmentLen}" -f ("("+((nullCoalesce $entry.Size, 1) * (nullCoalesce $entry.Qty, 1))+")")
-					}
-					else
-					{
-						$lineItemInfo += " {0, $lineEntryRightSegmentLen}" -f ""
-					}
-				}
-				if ($title -eq "Location" )
-				{
-					#Valid Possibilities: a) unit has a bare X,Y coordinate or System as its Location
-					#                     b) unit is in Racks or Cargo - its parent is of type (a)
-					#                     c) unit is in Cargo - its parent is in Racks, and ITS parent is of Type (a)
-					#                     d) ???
-					$xCoord = (nullCoalesce($entry.X, $entry.Location.X, $entry.Location.Location.X, "?"))
-					$yCoord = (nullCoalesce($entry.Y, $entry.Location.Y, $entry.Location.Location.Y, "?"))
-					$lineItemInfo = ((("<{0},{1}>" -f $xCoord, $yCoord) -join " ").Trim())
-				}
-				
-				#last-ditch, probably won't be pretty
-				if ($lineItemTitle -eq "")
-				{
-					$lineItemTitle="{0}" -f "", $entry
-				}
-				
-				"| {0,-$infoEntryLeftSegmentLen}| {1, -$lineEntryLeftSegmentLen} {2, $lineEntryRightSegmentLen} |" -f "", $lineItemTitle, $lineItemInfo
+				$lineItemTitle="{0}" -f "", $entry
 			}
+			
+			"| {0,-$infoEntryLeftSegmentLen}| {1, -$lineEntryLeftSegmentLen} {2, $lineEntryRightSegmentLen} |" -f "", $lineItemTitle, $lineItemInfo
 		}
 	}
 }
