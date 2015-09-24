@@ -65,6 +65,9 @@ $GameConfig_ReignOfStars=@"
 		, "Components"             : {
 			"PD":0, "B":0, "S":0, "T":0, "M":0, "SR":0, "C":0, "SH":0, "A":0, "E":0, "H":0, "R":0, "CP":0, "SWG":0, "MWG":0, "LWG":0, "GWG":0, "SSB":0, "MSB":0, "LSB":0, "SSS":0, "MSS":0, "LSS":0, "GSS":0
 		}
+		, "PowerAllocation"        : {
+			"PD":0, "B":0, "S":0, "T":0, "M":0, "SR":0, "C":0, "SH":0, "A":0, "E":0, "H":0, "R":0, "CP":0, "SWG":0, "MWG":0, "LWG":0, "GWG":0, "SSB":0, "MSB":0, "LSB":0, "SSS":0, "MSS":0, "LSS":0, "GSS":0
+		}
 		, "Universe"               : "Reign of Stars"
 		, "Valid"                  : "???"
 		, "Racks"                  : []
@@ -77,46 +80,47 @@ $GameConfig_ReignOfStars=@"
 	}
 	, "ShipSpecs": [
 		{
-		    "ID"        : "IWS-01-001"
-		  , "Name"      : "Gladius-1"
-		  , "Owner"     : "Empire"
-		  , "Location"  : { "X":1, "Y":1 }
-		  , "TL"        : 2
-		  , "Components": { "SWG":1, "PD":4, "B":2, "S":1, "SR":2, "ZZZ":1, "LWG":0 }
-		  , "Damage"    : { "ZZZ":1 }
+		    "ID"              : "IWS-01-001"
+		  , "Name"            : "Gladius-1"
+		  , "Owner"           : "Empire"
+		  , "Location"        : { "X":1, "Y":1 }
+		  , "TL"              : 2
+		  , "Components"      : { "SWG":1, "PD":4, "B":2, "S":1, "SR":2, "ZZZ":1, "LWG":0 }
+		  , "Damage"          : { "ZZZ":1 }
 		}
 		, {
-		    "ID"        : "IWS-01-002"
-		  , "Name"      : "Gladius-2"
-		  , "Owner"     : "Empire"
-		  , "Components": { "SWG":1, "PD":4, "B":2, "S":1, "SR":2 }
-		  , "Racks"     : ["ISS-0A-001", "BOGUS"]
-		  , "Location"  : "SYS001"
-		  , "Damage"    : { "SR":1 }
+		    "ID"              : "IWS-01-002"
+		  , "Name"            : "Gladius-2"
+		  , "Owner"           : "Empire"
+		  , "Components"      : { "SWG":1, "PD":4, "B":2, "S":1, "SR":2 }
+		  , "Racks"           : ["ISS-0A-001", "BOGUS"]
+		  , "Location"        : "SYS001"
+		  , "Damage"          : { "SR":1 }
+		  , "PowerAllocation" : {"S":1, "B":2}
 		}
 		, {
-		    "ID"        : "ISS-0A-001"
-		  , "Name"      : "Portero-1"
-		  , "Owner"     : "Empire"
-		  , "Components": { "SSS":1, "PD":4, "S":1, "H":2 }
-		  , "Cargo"     : [{ "Name":"BP", "Size":1, "Qty":5 }, { "Name":"Fifth Space Marines", "Size":5, "Qty":1 }, "ISB-0A-00A"]
-		  , "Location"  : "IWS-01-002"
+		    "ID"               : "ISS-0A-001"
+		  , "Name"             : "Portero-1"
+		  , "Owner"            : "Empire"
+		  , "Components"       : { "SSS":1, "PD":4, "S":1, "H":2 }
+		  , "Cargo"            : [{ "Name":"BP", "Size":1, "Qty":5 }, { "Name":"Fifth Space Marines", "Size":5, "Qty":1 }, "ISB-0A-00A"]
+		  , "Location"         : "IWS-01-002"
 		}
 		, {
-		    "ID"        : "ISB-0A-00A"
-		  , "Name"      : "Orbituo-1"
-		  , "Owner"     : "Empire"
-		  , "Components": { "SSB":1, "PD":4, "B":1, "S":2 }
-		  , "Location"  : "ISS-0A-001"
-		  , "Damage"    : { "PD":4, "B":2, "SSB":4, "Junk":3, "S":1 }
+		    "ID"               : "ISB-0A-00A"
+		  , "Name"             : "Orbituo-1"
+		  , "Owner"            : "Empire"
+		  , "Components"       : { "SSB":1, "PD":4, "B":1, "S":2 }
+		  , "Location"         : "ISS-0A-001"
+		  , "Damage"           : { "PD":4, "B":2, "SSB":4, "Junk":3, "S":1 }
 		}
 	]
 	, "Systems": [
 		{
-			  "ID"      : "SYS001"
-			, "Name"    : "Beta Hydri"
-			, "X"       : "5"
-			, "Y"       : "5"
+			  "ID"             : "SYS001"
+			, "Name"           : "Beta Hydri"
+			, "X"              : "5"
+			, "Y"              : "5"
 		}
 	]
 }
@@ -154,8 +158,9 @@ function init-ShipsFromTemplate()
 	$ships = $shipSpecs
 	$cs = $componentSpec
 
-	#Convert template's Components dictionary into a KeyValuePair array for consistency
-	$shipT.Components = $shipT.Components.GetEnumerator() | ? { $_.Value -ne $null }
+	#Convert template's Components and PowerAllocation dictionaries into KeyValuePair arrays for consistency
+	$shipT.Components      = $shipT.Components.GetEnumerator()      | ? { $_.Value -ne $null }
+	$shipT.PowerAllocation = $shipT.PowerAllocation.GetEnumerator() | ? { $_.Value -ne $null }
 
 
 	
@@ -188,9 +193,11 @@ function init-ShipCollections
 	#First pass -- does not depend on other units' derived values
 	foreach ($ship in $shipSpecs)
 	{
-		write-verbose " - Filter out zero-value components"
-		$ship.Components = $ship.Components.GetEnumerator() | ? { $_.Value -ne 0 }
+		write-verbose " - Filter out zero-value components and power allocations"
+		$ship.Components      = $ship.Components.GetEnumerator()      | ? { $_.Value -ne 0 }
+		$ship.PowerAllocation = $ship.PowerAllocation.GetEnumerator() | ? { $_.Value -ne 0 }
 
+		
 		write-verbose " - Filter out irrelevant damage values"
 		$ship.Damage     = remove-ExtraProperties   -parent $ship.Components -child $ship.Damage
 		
@@ -242,10 +249,13 @@ function generate-derivedAttrs()
 	#Total construction cost
 	$unit.BPCost   = ( (get-DerivedValueSet -depKey "BPCost" -attrSet $unit.Components -depSpec $componentSpec )  | measure-object -sum).sum
 
+	#Total Power Allocation
+	$unit.PowerUsed = (nullCoalesce ( $unit.PowerAllocation  | measure-object -property Value -sum).sum,  0 )
+
 	#Hull/drivetype dependent
 	$unit.PDPerMP  = ( (get-DerivedValueSet -depKey "PDPerMP" -attrSet $unit.Components -depSpec $componentSpec )  | measure-object -sum).sum	
 	$unit.Size     = ( (get-DerivedValueSet -depKey "Hull" -attrSet $unit.Components -depSpec $componentSpec )  | measure-object -sum).sum	
-	$unit.BPMax    = ( (get-DerivedValueSet -depKey "MaxSize" -attrSet $unit.Components -depSpec $componentSpec )  | measure-object -sum).sum	
+	$unit.BPMax    = ( (get-DerivedValueSet -depKey "MaxSize" -attrSet $unit.Components -depSpec $componentSpec )  | measure-object -sum).sum
 	$unit.MP       = calculate-MovementPoints -drive (get-ComponentValue -unit $unit -componentKey "PD") -efficiency $unit.PDPerMP
 
 	#BPMax is simple for "vanilla" rules; Optional TL rule alters the BP-by-size calculation 
@@ -324,7 +334,9 @@ function generate-validationResult()
 	
 	#Units in your Racks should have Size no larger than you
 	#Units in your Racks should have you as their Location
-	#
+	#Units in your Racks should have no units in their Racks
+	
+	#Units in your Cargo should have no units in their Racks
 
 	$result
 }
@@ -512,8 +524,8 @@ function printShipInfo
 		, [switch] $includeZeroes
 		, [Decimal] $infoEntryLeftSegmentLen  =20
 		, [Decimal] $lineEntryLeftSegmentLen  =19
-		, [Decimal] $lineEntryRightSegmentLen =15
-		, [Decimal] $lineEntryFullLen         =35
+		, [Decimal] $lineEntryRightSegmentLen =25
+		, [Decimal] $lineEntryFullLen         =45
 	) 
 	
 	if($includeZeroes -eq $true)
@@ -530,9 +542,9 @@ function printShipInfo
 	("| {0,-$infoEntryLeftSegmentLen}| {1, -$lineEntryFullLen} |" -f $s.ID, $s.Name )
 	"|-{0,-$infoEntryLeftSegmentLen}--{1, -$lineEntryFullLen}-|" -f (("-"*$infoEntryLeftSegmentLen), ("-"*$lineEntryFullLen))
 	#Excluded info fields -- fields which either need additional special handling, or aren't to be displayed
-	$exclInfoFields = ("ID", "Name", "Cargo", "Components", "Damage", "DerivedAttrs", "EffectiveAttrs", "HAvail", "HUsed", "MP", "PDPerMP", "SRAvail", "SRUsed", "Location", "Racks", "Valid", "ValidationResult")
+	$exclInfoFields = ("ID", "Name", "Cargo", "Components", "Damage", "DerivedAttrs", "EffectiveAttrs", "HAvail", "HUsed", "MP", "PDPerMP", "SRAvail", "SRUsed", "Location", "PowerAllocation", "Racks", "Valid", "ValidationResult")
 	#Ordered info fields
-	$orderedInfoFields = ("Owner", "Universe", "TL", "BPCost", "BPMax", "Size",  "MP") 
+	$orderedInfoFields = ("Owner", "Universe", "TL", "BPCost", "BPMax", "Size",  "PowerUsed", "MP") 
 	foreach ($infoKey in $orderedInfoFields)
 	{ 
 		"| {0,-$infoEntryLeftSegmentLen}| {1, -$lineEntryFullLen} |" -f ($infoKey, (nullCoalesce $s.$infoKey, 0))
@@ -547,14 +559,17 @@ function printShipInfo
 	}
 	
 	#Complex info fields
+		write-debug "Location"
+		print-LocationDetail  -title "Location"   -location $s.Location
+
+		"| {0,-$infoEntryLeftSegmentLen}| {1, -$lineEntryFullLen}-|" -f ((" "*$infoEntryLeftSegmentLen), ("-"*$lineEntryFullLen))
+
 		write-debug "Components"
-		print-ComponentDetail -title "Components" -collection $s.Components -effectiveCollection $s.EffectiveAttrs -damageCollection $s.Damage -includeZeroes $includeZeroes 
+		print-ComponentDetail -title "Components" -collection $s.Components -effectiveCollection $s.EffectiveAttrs -damageCollection $s.Damage -powerCollection $s.PowerAllocation -includeZeroes $includeZeroes 
 		write-debug "Cargo"
 		print-ListDetail      -title "Cargo"      -collection $s.Cargo -count $s.HUsed  -capacity $s.HAvail
 		write-debug "Racks"		
 		print-ListDetail      -title "Racks"      -collection $s.Racks -count $s.SRUsed -capacity $s.SRAvail
-		write-debug "Location"
-		print-LocationDetail  -title "Location"   -location $s.Location
 		write-debug "EffectiveAttrs (incl damage annotations)"
 		write-debug "ValidationResult (incl 'Valid' ruling)"
 		
@@ -569,18 +584,22 @@ function print-ComponentDetail()
 		  $collection
 		, $damageCollection         = $null
 		, $effectiveCollection      = $null
+		, $powerCollection          = $null
 		, $title                    = "Components"
 		, $includeZeroes            = $false
 		, $infoEntryLeftSegmentLen  = 20
 		, $lineEntryLeftSegmentLen  = 19
-		, $lineEntryRightSegmentLen = 15
-		, $lineEntryFullLen         = 35
+		, $lineEntryRightSegmentLen = 25
+		, $lineEntryFullLen         = 45
 	)
 	
+	$compInfoHeader="Max | Dmg | Eff | Pwr "		
+
 	if($collection.Count -gt 0 -or $includeZeroes)
 	{
-		$qtyHeader=""		
-		"| {0,-$infoEntryLeftSegmentLen}| {1, $lineEntryFullLen } |" -f "$title $qtyHeader", ("Spec | Dmg | Eff | Pwr ")
+		"| {0,-$infoEntryLeftSegmentLen}| {1, -$lineEntryLeftSegmentLen } {2, -$lineEntryRightSegmentLen} |" -f "$title", "Name (#)", $compInfoHeader
+		"| {0,-$infoEntryLeftSegmentLen}| {1, -$lineEntryFullLen}-|" -f ((" "*$infoEntryLeftSegmentLen), ("-"*$lineEntryFullLen))
+
 	}
 	
 	foreach ($entry in $collection)
@@ -594,23 +613,24 @@ function print-ComponentDetail()
 		
 		if($entry.Value -ne $null)
 		{
-			$eKey    = $entry.Key
-			$eValTxt = $entry.Value
+			$eKey         = $entry.Key
+			$eVal         = $entry.Value
+			$eDmgTxt      = (nullCoalesce $damageCollection.$eKey   , 0)
+			$eEffTxt      = (nullCoalesce $effectiveCollection.$eKey, ($eVal - $eDmgTxt))
+			$eSpecTxt     = $eEffTxt + $eDmgTxt
+			$ePwrTxt      = (nullCoalesce ($powerCollection | ? { $_.Key -eq "$eKey" }).Value, 0)
+			$eRightBuffer = $lineEntryRightSegmentLen - $compInfoHeader.Length
 			
-			if($effectiveCollection -ne $null -and $effectiveCollection.$eKey -ne $null)
+			if($eVal -ne 1)
 			{
-				$eValTxt = "{0}/{1}" -f $effectiveCollection.$eKey, ($effectiveCollection.$eKey+$damageCollection.$eKey)
-			}
-			
-			if($damageCollection -ne $null -and $damageCollection.$eKey -ne $null -and $damageCollection.$eKey -gt 0)
-			{
-				$eValTxt = "$eValTxt {0,8}" -f "(HIT:$($damageCollection.$eKey))"
+				$eKeyTxt = "{0,-4} ({1})" -f $eKey, $eVal
 			}
 			else
 			{
-				$eValTxt = "$eValTxt {0,8}" -f ""
+				$eKeyTxt = $eKey
 			}
-			"| {0,-$infoEntryLeftSegmentLen}| {1, -$lineEntryLeftSegmentLen}:{2, $lineEntryRightSegmentLen} |" -f "", $entry.Key, $eValTxt
+			
+			"| {0,-$infoEntryLeftSegmentLen}| {1, -$lineEntryLeftSegmentLen} {2, 3} | {3, 3} | {4,3} | {5,3} {6,$eRightBuffer} |" -f "", $eKeyTxt, $eSpecTxt, $eDmgTxt, $eEffTxt, $ePwrTxt, ""
 		}
 	}
 	
@@ -624,13 +644,12 @@ function print-LocationDetail()
 		, $title
 		, $infoEntryLeftSegmentLen  = 20
 		, $lineEntryLeftSegmentLen  = 19
-		, $lineEntryRightSegmentLen = 15
-		, $lineEntryFullLen         = 35
+		, $lineEntryRightSegmentLen = 25
+		, $lineEntryFullLen         = 45
 	)
 
 	if($location -ne $null -or $includeZeroes)
 	{
-		$qtyHeader=""		
 		$lineItemTitle = ""
 		$lineItemInfo  = ""
 		
@@ -643,9 +662,7 @@ function print-LocationDetail()
 
 		$lineItemTitle = "{0}" -f (nullCoalesce $location.Name, "")
 		$lineItemInfo = ((("<{0},{1}>" -f $xCoord, $yCoord) -join " ").Trim())
-		
-		"| {0,-$infoEntryLeftSegmentLen}| {1, -$lineEntryLeftSegmentLen}-{2, $lineEntryRightSegmentLen} |" -f "$title $qtyHeader", ("-"*$lineEntryLeftSegmentLen), ("-"*$lineEntryRightSegmentLen)
-		"| {0,-$infoEntryLeftSegmentLen}| {1, -$lineEntryLeftSegmentLen} {2, $lineEntryRightSegmentLen} |" -f "", $lineItemTitle, $lineItemInfo
+		"| {0,-$infoEntryLeftSegmentLen}| {1, -$lineEntryLeftSegmentLen} {2, -$lineEntryRightSegmentLen} |" -f "$title", $lineItemTitle, $lineItemInfo
 	}
 }
 
@@ -660,8 +677,8 @@ function print-ListDetail()
 		, $includeZeroes
 		, $infoEntryLeftSegmentLen  = 20
 		, $lineEntryLeftSegmentLen  = 19
-		, $lineEntryRightSegmentLen = 15
-		, $lineEntryFullLen         = 35
+		, $lineEntryRightSegmentLen = 25
+		, $lineEntryFullLen         = 45
 	)
 	
 	write-debug "detailing $($collection.Count) list items..."
