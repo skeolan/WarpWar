@@ -79,41 +79,66 @@ $GameConfig_ReignOfStars=@"
 		, "ValidationResult"       : []
 	}
 	, "ShipSpecs": [
-		{
-		    "ID"              : "IWS-01-001"
-		  , "Name"            : "Gladius-1"
-		  , "Owner"           : "Empire"
-		  , "Location"        : { "X":1, "Y":1 }
-		  , "TL"              : 2
-		  , "Components"      : { "SWG":1, "PD":4, "B":2, "S":1, "SR":2, "ZZZ":1, "LWG":0 }
-		  , "Damage"          : { "ZZZ":1 }
-		}
+		  {
+		      "ID"              : "RWS-01-001"
+		    , "Name"            : "Vulpine-1"
+		    , "Owner"           : "Rebels"
+		    , "Location"        : { "X":1, "Y":1 }
+		    , "TL"              : 2
+		    , "Components"      : { "SWG":1, "PD":4, "B":2, "S":1, "SR":2, "ZZZ":1, "LWG":0 }
+		    , "Damage"          : { "ZZZ":1 }
+		    , "PowerAllocation" : { "PD":3, "B":1 }
+		    , "TurnOrders"      : [
+		  						      {
+		  								  "Target"  : "IWS-01-001", "Tactic"         : "Attack"
+		  								, "Shells"  : 0           , "PowerAllocation": { "S":1, "B":1, "PD":2 }
+		  								, "Missiles": []
+		  							  }
+		  							, {
+		  								  "Target"  : "IWS-01-001", "Tactic"         : "Dodge"
+		  								, "Shells"  : 0           , "PowerAllocation": { "S":1, "B":1, "PD":2 }
+		  								, "Missiles": []
+		  							  }
+		                          ]
+		  }
 		, {
-		    "ID"              : "IWS-01-002"
-		  , "Name"            : "Gladius-2"
-		  , "Owner"           : "Empire"
-		  , "Components"      : { "SWG":1, "PD":4, "B":2, "S":1, "SR":2 }
-		  , "Racks"           : ["ISS-0A-001", "BOGUS"]
-		  , "Location"        : "SYS001"
-		  , "Damage"          : { "SR":1 }
-		  , "PowerAllocation" : {"S":1, "B":2}
-		}
+		      "ID"              : "IWS-01-001"
+		    , "Name"            : "Gladius-1"
+		    , "Owner"           : "Empire"
+		    , "Components"      : { "SWG":1, "PD":4, "B":2, "S":1, "SR":2 }
+		    , "Racks"           : ["ISS-0A-001", "BOGUS"]
+		    , "Location"        : "SYS001"
+		    , "Damage"          : { "SR":1 }
+		    , "PowerAllocation" : { "S":1, "B":2, "PD":2 }
+		    , "TurnOrders"      : [
+		  						      {
+		  								  "Target"  : "RWS-01-001", "Tactic"         : "Dodge"
+		  								, "Shells"  : 0           , "PowerAllocation": { "S":1, "B":1, "PD":2 }
+		  								, "Missiles": []
+		  							  }
+		  							, {
+		  								  "Target"  : "RWS-01-001", "Tactic"         : "Dodge"
+		  								, "Shells"  : 0           , "PowerAllocation": { "S":1, "B":0, "PD":3 }
+		  								, "Missiles": []
+		  							  }
+		                          ]
+		  }
 		, {
-		    "ID"               : "ISS-0A-001"
-		  , "Name"             : "Portero-1"
-		  , "Owner"            : "Empire"
-		  , "Components"       : { "SSS":1, "PD":4, "S":1, "H":2 }
-		  , "Cargo"            : [{ "Name":"BP", "Size":1, "Qty":5 }, { "Name":"Fifth Space Marines", "Size":5, "Qty":1 }, "ISB-0A-00A"]
-		  , "Location"         : "IWS-01-002"
-		}
+		      "ID"               : "ISS-0A-001"
+		    , "Name"             : "Portero-1"
+		    , "Owner"            : "Empire"
+		    , "Components"       : { "SSS":1, "PD":4, "S":1, "H":2 }
+		    , "Cargo"            : [{ "Name":"BP", "Size":1, "Qty":5 }, { "Name":"Fifth Space Marines", "Size":5, "Qty":1 }, "ISB-0A-00A"]
+		    , "Location"         : "IWS-01-001"
+		  }
 		, {
-		    "ID"               : "ISB-0A-00A"
-		  , "Name"             : "Orbituo-1"
-		  , "Owner"            : "Empire"
-		  , "Components"       : { "SSB":1, "PD":4, "B":1, "S":2 }
-		  , "Location"         : "ISS-0A-001"
-		  , "Damage"           : { "PD":4, "B":2, "SSB":4, "Junk":3, "S":1 }
-		}
+		      "ID"               : "ISB-0A-00A"
+		    , "Name"             : "Orbituo-1"
+		    , "Owner"            : "Empire"
+		    , "Components"       : { "SSB":1, "PD":4, "B":1, "S":2 }
+		    , "Location"         : "ISS-0A-001"
+		    , "Damage"           : { "PD":4, "B":2, "SSB":4, "Junk":3, "S":1 }
+		  }
 	]
 	, "Systems": [
 		{
@@ -542,7 +567,7 @@ function printShipInfo
 	("| {0,-$infoEntryLeftSegmentLen}| {1, -$lineEntryFullLen} |" -f $s.ID, $s.Name )
 	"|-{0,-$infoEntryLeftSegmentLen}--{1, -$lineEntryFullLen}-|" -f (("-"*$infoEntryLeftSegmentLen), ("-"*$lineEntryFullLen))
 	#Excluded info fields -- fields which either need additional special handling, or aren't to be displayed
-	$exclInfoFields = ("ID", "Name", "Cargo", "Components", "Damage", "DerivedAttrs", "EffectiveAttrs", "HAvail", "HUsed", "MP", "PDPerMP", "SRAvail", "SRUsed", "Location", "PowerAllocation", "Racks", "Valid", "ValidationResult")
+	$exclInfoFields = ("ID", "Name", "Cargo", "Components", "Damage", "DerivedAttrs", "EffectiveAttrs", "HAvail", "HUsed", "MP", "PDPerMP", "SRAvail", "SRUsed", "Location", "Orders", "PowerAllocation", "Racks", "Valid", "ValidationResult")
 	#Ordered info fields
 	$orderedInfoFields = ("Owner", "Universe", "TL", "BPCost", "BPMax", "Size",  "PowerUsed", "MP") 
 	foreach ($infoKey in $orderedInfoFields)
