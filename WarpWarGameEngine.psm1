@@ -15,6 +15,26 @@ function init()
 	$GameData	
 }
 
+function execute-TurnOrder()
+{
+	[cmdletBinding()]
+	param (
+		  $attacker
+		, $defender
+		, $attackerOrders
+		, $defenderOrders
+	)
+	
+	$a  = $attacker
+	$d  = $defender
+	$ao = $attackerOrders
+	$do = $defenderOrders
+	
+	write-verbose ( "[ENGINE:Execute-TurnOrder] {0} attacks {1}!" -f $a.Name, $d.Name )
+	write-verbose ( "[ENGINE:Execute-TurnOrder]     Orders: {0} : {1} at Drive {2} vs {3} : {4} at Drive {5}" -f $a.Name, $ao.Tactic, $ao.PowerAllocation.PD, $d.Name, $do.Tactic, $do.PowerAllocation.PD)
+	$true
+}
+
 function init-ShipsFromTemplate()
 {
 	[cmdletBinding()]
@@ -412,9 +432,9 @@ function printShipInfo
 	("| {0,-$infoEntryLeftSegmentLen}| {1, -$lineEntryFullLen} |" -f $s.ID, $s.Name )
 	"|-{0,-$infoEntryLeftSegmentLen}--{1, -$lineEntryFullLen}-|" -f (("-"*$infoEntryLeftSegmentLen), ("-"*$lineEntryFullLen))
 	#Excluded info fields -- fields which either need additional special handling, or aren't to be displayed
-	$exclInfoFields = ("ID", "Name", "Cargo", "Components", "Damage", "DerivedAttrs", "EffectiveAttrs", "HAvail", "HUsed", "MP", "PDPerMP", "SRAvail", "SRUsed", "Location", "Orders", "PowerAllocation", "Racks", "Valid", "ValidationResult")
+	$exclInfoFields = ("ID", "Name", "Cargo", "Components", "Damage", "DerivedAttrs", "EffectiveAttrs", "HAvail", "HUsed", "MP", "PDPerMP", "SRAvail", "SRUsed", "Location", "TurnOrders", "PowerAllocation", "PowerUsed", "Racks", "Valid", "ValidationResult")
 	#Ordered info fields
-	$orderedInfoFields = ("Owner", "Universe", "TL", "BPCost", "BPMax", "Size",  "PowerUsed", "MP") 
+	$orderedInfoFields = ("Owner", "Universe", "TL", "BPCost", "BPMax", "Size", "MP") 
 	foreach ($infoKey in $orderedInfoFields)
 	{ 
 		"| {0,-$infoEntryLeftSegmentLen}| {1, -$lineEntryFullLen} |" -f ($infoKey, (nullCoalesce $s.$infoKey, 0))

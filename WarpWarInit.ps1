@@ -9,13 +9,9 @@ param(
 
 if($PSBoundParameters['Debug']) { $debugPreference = $onDebugAction }
 
-#Game constants.
-#"Hull_damage_value": 0 for "vanilla" rules; 1+ makes larger ships tougher than smaller ships with equal armor/shields/ecm.
-#"TL_addTo_BPLimit" : 0 for "vanilla" rules; 1+ alters the BP-by-size calculation from the static max-size spec to (sqrt(MaxSize) * (sqrt(maxSize) + TL -1))"
-#"TL_addTo_Damage"  : 1 for "vanilla" rules; 0 compensates for the increased damage capability that comes from having more BP for higher-TL ships."ration. PD gets all stats explicitly to help table-formatting.
 
 $GameState  = $null
-$GameEngine = import-module $PSScriptRoot\WarpWarGameEngine.psm1
+$GameEngine = import-module $PSScriptRoot\WarpWarGameEngine.psm1 -Force
 $GameState  = init -cfg (get-content $gameData)
 $constants  = $GameState.Constants 
 
@@ -33,10 +29,17 @@ foreach($turn in (1,2) )
 	{ 
 	foreach ($ship in $combatShips) 
 	{ 
-		write-host ("Executing turn {0} orders for {1}" -f $turn, $ship.Name )
+		$tI = $turn-1
+		write-verbose ("Executing turn {0} orders for {1}" -f $turn, $ship.Name )
+		$attacker = $ship
+		$defender = @($GameState.ShipSpecs | ? { $_.ID -eq  $attacker.TurnOrders[$tI].Target})[0]
+		$result = execute-TurnOrder -attacker $attacker -defender $defender -attackerOrders ($attacker.TurnOrders[$tI]) -defenderOrders ($defender.TurnOrders[$tI]) -verbose
+		if($result) { write-verbose "Turn executed successfully"         }
+		else        { write-verbose "Turn did not execute successfully?" }
+		write-verbose "Turn completed, proceeding..."
 	} 
 }
 
-write-verbose @"
-See the '`$GameState' object for more info.
-"@
+write-verbose "Combat completed!"
+
+$GameState
