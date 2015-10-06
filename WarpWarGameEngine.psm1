@@ -32,7 +32,58 @@ function execute-TurnOrder()
 	
 	write-verbose ( "[ENGINE:Execute-TurnOrder] {0} attacks {1}!" -f $a.Name, $d.Name )
 	write-verbose ( "[ENGINE:Execute-TurnOrder]     Orders: {0} : {1} at Drive {2} vs {3} : {4} at Drive {5}" -f $a.Name, $ao.Tactic, $ao.PowerAllocation.PD, $d.Name, $do.Tactic, $do.PowerAllocation.PD)
-	$true
+	
+	if((Validate-Orders($attacker, $defender, $attackerOrders, $defenderOrders)) -eq $false) { return $false }
+	
+	#component data structures useful for adjudicating results
+	$weps = $GameData.ComponentSpecs | ? { $_.CompType -eq "Weapon"     } # or $_.RoF -ne $null if you want to be fancy
+	$ammo = $GameData.ComponentSpecs | ? { $_.CompType -eq "Ammunition" }
+	$defs = $GameData.ComponentSpecs | ? { $_.CompType -eq "Defense"    }
+	$hull = $GameData.ComponentSpecs | ? { $_.CompType -eq "Hull"       }
+	$bays = $GameData.ComponentSpecs | ? { $_.CompType -eq "Carry"      }
+	$util = $GameData.ComponentSpecs | ? { $_.CompType -eq "Utility" -or $_.CompType -eq  "Power" }
+	
+	$aDrive       = $ao.PowerAllocation.PD
+	$dDrive       = $do.PowerAllocation.PD
+	$aTL          = $attacker.TL
+	$dTL          = $defender.TL
+
+	$targetDamage = 0
+	$turnResult   = "Continue"
+	
+	foreach ($weapon in ($weps + $ammo))
+	{
+		$wepOrderedPwr = nullCoalesce ($ao.PowerAllocation.$($weapon.Name), 0)
+		$wepName       = $weapon.Name		
+		
+		#Direct-fire weapons, e.g. Beams and Shells (presuming Cannons were activated, as confirmed in Validate-Orders)
+		if($weapon.Damage -gt 0 -and $wepOrderedPwr -gt 0)
+		{
+			$wepOrderedDrive  = nullCoalesce((Get-OrderedWeaponDrive $ao $wepName), $aDrive)
+			write-verbose ( "{0}Evaluate attack for {1}, allocated {2} power, drive {3} vs defender {4}" -f "[ENGINE:Execute-TurnOrder]     ", $wepName, $wepOrderedPwr, $wepOrderedDrive, $aDrive )
+			$wepResult = Calculate-CombatResult $ao.Tactic $do.Tactic $aDrive $dDrive
+			if($wepResult -ne "Miss" -and $wepResult -ne "Escapes")
+			{
+				$wepOrderedDamage = Calculate-WeaponDamage $wepName $wepOrderedPwr $wepOrderedDrive $dDrive $aTL $dTL $ao $do $wepResult 
+				if($wepOrderedDamage -ne 0)
+				{
+					write-verbose ( "{0}Target hit for {1} damage!" -f "[ENGINE:Execute-TurnOrder]     ", $wepOrderedDamage)
+				}
+			}
+			if($wepResult -eq "Miss")
+			{
+				write-verbose ("{0} {1} attack with {2} missed {3} !" -f "[ENGINE:Execute-TurnOrder]     ", $attacker.Name, $wepName, $defender.Name)
+			}
+			
+			if($wepResult -eq "Escapes")
+			{
+				write-verbose ("{0} {1} attack with {2} missed and permitted {3} to escape!" -f "[ENGINE:Execute-TurnOrder]     ", $attacker.Name, $wepName, $defender.Name)
+				$turnResult="Escapes"
+			}
+		}
+	}
+	write-verbose ( "[ENGINE:Execute-TurnOrder] Result: {0}" -f $turnResult )
+	$turnResult
 }
 
 function init-ShipsFromTemplate()
@@ -106,7 +157,7 @@ function init-ShipCollections
 		generate-derivedAttrs -unit $ship -componentSpec $componentSpec
 
 		write-verbose "Generate validation errors from components, racks, cargo, damage"
-		$ship.ValidationResult = (generate-validationResult -unit $ship)
+		$ship.ValidationResult = (Validate-Unit -unit $ship)
 			
 	}
 	#Second pass -- depends on other units' derived values
@@ -207,7 +258,68 @@ function generate-effectiveAttrs()
 	$result
 }
 
-function generate-validationResult()
+function Validate-Orders()
+{
+	[CmdletBinding()]
+	param(
+		  $attacker
+		, $defender
+		, $attackerOrders
+		, $defenderOrders		
+	)
+
+	$true
+}
+
+function Get-OrderedWeaponDrive()
+{
+	[CmdletBinding()]
+	param(
+		  $orders
+		, $weaponName
+	)
+	write-verbose "[ENGINE:Get-OrderedWeaponDrive]      Find unresolved attacker drive orders for weapon $weaponName"
+	$null
+}
+
+function Calculate-CombatResult()
+{
+ [CmdletBinding()]
+ param(
+	  $aTac
+	, $dTac
+	, $aDrive
+	, $dDrive
+	)
+	
+	"Miss"	  
+}
+
+function Calculate-WeaponDamage()
+{
+[CmdletBinding()]
+	param(
+		    $wepName
+		  , $wepOrderedPwr
+		  , $aDrive
+		  , $dDrive
+		  , $aTL
+		  , $dTL
+		  , $ao
+		  , $do
+		  , $result
+	)
+	
+	$weaponDamage = 0
+	
+	$weaponResult = Calculate-CombatResult $ao.Tactic $do.Tactic $aDrive $dDrive
+	
+	
+	#$weaponDamage
+	-99
+}
+
+function Validate-Unit()
 {
 	[cmdletBinding()]
 	param (
