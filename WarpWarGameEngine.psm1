@@ -292,7 +292,159 @@ function Calculate-CombatResult()
 	, $dDrive
 	)
 	
-	"Miss"	  
+	$driveDiff  = $aDrive - $dDrive
+	if( $driveDiff -gt  5 ) { $driveDiff= 5 }
+	if( $driveDiff -lt -5 ) { $driveDiff=-5 }
+	
+	$tacPairing = "{0}:{1}" -f $aTac, $dTac
+
+	#AttackerTactic.DefenderTactic[DriveDiff]
+						  #(   -5          -4          -3         -2          -1          0           1             2          3          4           5      )
+	$CombatResults = @{
+		"Attack"  = @{
+		 	  "Attack"  = @("Miss"    , "Miss"    , "Miss"    , "Hit"     , "Hit"     , "Hit+2"   , "Hit+2"   , "Hit+1"   , "Miss"    , "Miss"    , "Miss"   )
+			; "Dodge"   = @("Miss"    , "Miss"    , "Miss"    , "Miss"    , "Miss"    , "Miss"    , "Miss"    , "Hit+1"   , "Hit"     , "Hit"     , "Miss"   )
+			; "Retreat" = @("Escapes" , "Escapes" , "Escapes" , "Escapes" , "Escapes" , "Miss"    , "Miss"    , "Miss"    , "Hit"     , "Hit"     , "Miss"   )
+		}                                                                                                                                                    
+		; "Dodge"   = @{                                                                                                                                     
+			  "Attack"  = @("Miss"    , "Miss"    , "Miss"    , "Miss"    , "Hit"     , "Hit"     , "Hit"     , "Hit"     , "Miss"    , "Miss"    , "Miss"   )
+		    ; "Dodge"   = @("Miss"    , "Miss"    , "Hit"     , "Hit"     , "Hit"     , "Hit"     , "Miss"    , "Miss"    , "Miss"    , "Miss"    , "Miss"   )
+		    ; "Retreat" = @("Escapes" , "Escapes" , "Escapes" , "Escapes" , "Escapes" , "Escapes" , "Escapes" , "Escapes" , "Escapes" , "Escapes" ,"Escapes" )
+		}
+		; "Retreat" = @{
+			  "Attack"  = @("Miss"    , "Miss"    , "Miss"    , "Miss"    , "Hit"     , "Hit"     , "Miss"    , "Miss"    , "Miss"    , "Miss"    , "Miss"   )
+		    ; "Dodge"   = @("Miss"    , "Miss"    , "Miss"    , "Miss"    , "Miss"    , "Miss"    , "Miss"    , "Miss"    , "Miss"    , "Miss"    , "Miss"   )
+		    ; "Retreat" = @("Escapes" , "Escapes" , "Escapes" , "Escapes" , "Escapes" , "Escapes" , "Escapes" , "Escapes" , "Escapes" , "Escapes" ,"Escapes" )
+		}
+	
+	}
+	
+	switch($tacPairing)
+	{
+	Attack:Attack   { 
+						switch($driveDiff)
+						{
+							-5 { $result="Miss" ; break; }
+							-4 { $result="Miss" ; break; }
+							-3 { $result="Miss" ; break; }
+							-2 { $result="Hit"  ; break; }
+							-1 { $result="Hit"  ; break; }
+							 0 { $result="Hit+2"; break; }
+							 1 { $result="Hit+2"; break; }
+							 2 { $result="Hit+1"; break; }
+							 3 { $result="Miss" ; break; }
+							 4 { $result="Miss" ; break; }
+							 5 { $result="Miss" ; break; }
+						}
+						break; 
+					}
+	Attack:Dodge    { 
+						switch($driveDiff)
+						{
+							-5 { $result="Miss"  ; break; }
+							-4 { $result="Miss"  ; break; }
+							-3 { $result="Miss"  ; break; }
+							-2 { $result="Miss"  ; break; }
+							-1 { $result="Miss"  ; break; }
+							 0 { $result="Miss"  ; break; }
+							 1 { $result="Miss"  ; break; }
+							 2 { $result="Hit+1" ; break; }
+							 3 { $result="Hit"   ; break; }
+							 4 { $result="Hit"   ; break; }
+							 5 { $result="Miss"  ; break; }
+						}
+						break; 
+					}
+	Attack:Retreat  { 
+						switch($driveDiff)
+						{
+							-5 { $result="Escapes" ; break; }
+							-4 { $result="Escapes" ; break; }
+							-3 { $result="Escapes" ; break; }
+							-2 { $result="Escapes" ; break; }
+							-1 { $result="Escapes" ; break; }
+							 0 { $result="Miss"    ; break; }
+							 1 { $result="Miss"    ; break; }
+							 2 { $result="Miss"    ; break; }
+							 3 { $result="Hit"     ; break; }
+							 4 { $result="Hit"     ; break; }
+							 5 { $result="Miss"    ; break; }
+						}
+						break; 
+					}
+	Dodge:Attack    { 
+						switch($driveDiff)
+						{
+							-5 { $result="Miss" ; break; }
+							-4 { $result="Miss" ; break; }
+							-3 { $result="Miss" ; break; }
+							-2 { $result="Miss" ; break; }
+							-1 { $result="Hit"  ; break; }
+							 0 { $result="Hit"  ; break; }
+							 1 { $result="Hit"  ; break; }
+							 2 { $result="Hit"  ; break; }
+							 3 { $result="Miss" ; break; }
+							 4 { $result="Miss" ; break; }
+							 5 { $result="Miss" ; break; }
+						}
+						break; 
+					}
+	Dodge:Dodge     { 
+						switch($driveDiff)
+						{
+							-5 { $result="Miss" ; break; }
+							-4 { $result="Miss" ; break; }
+							-3 { $result="Hit"  ; break; }
+							-2 { $result="Hit"  ; break; }
+							-1 { $result="Hit"  ; break; }
+							 0 { $result="Hit"  ; break; }
+							 1 { $result="Miss" ; break; }
+							 2 { $result="Miss" ; break; }
+							 3 { $result="Miss" ; break; }
+							 4 { $result="Miss" ; break; }
+							 5 { $result="Miss" ; break; }
+						}
+						break; 
+					}
+	Dodge:Retreat   { 
+						$result = "Escapes"
+						break; 
+					}
+	Retreat:Attack  { 
+						switch($driveDiff)
+						{
+							-5 { $result="Miss" ; break; }
+							-4 { $result="Miss" ; break; }
+							-3 { $result="Miss" ; break; }
+							-2 { $result="Miss" ; break; }
+							-1 { $result="Hit"  ; break; }
+							 0 { $result="Hit"  ; break; }
+							 1 { $result="Miss" ; break; }
+							 2 { $result="Miss" ; break; }
+							 3 { $result="Miss" ; break; }
+							 4 { $result="Miss" ; break; }
+							 5 { $result="Miss" ; break; }
+						}
+						break; 
+					}
+	Retreat:Dodge   { 
+						$result="Miss"
+						break; 
+					}
+	Retreat:Retreat { 
+						$result="Escapes"
+						break; 
+					}
+	Default         { 
+						$result = "INVALID"; 
+						break; 
+					}
+	}
+	
+	write-verbose "[ENGINE:Calculate-CombatResult]      $tacPairing at $driveDiff => $result"
+	write-verbose("[ENGINE:Calculate-CombatResult]        -- Using hash-array CRT method: {0}" -f $CombatResults.$aTac.$dTac[($driveDiff+5)])
+	
+	$result
 }
 
 function Calculate-WeaponDamage()
