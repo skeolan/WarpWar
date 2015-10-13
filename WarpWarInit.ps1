@@ -29,11 +29,10 @@ foreach($turn in (1,2) )
 	{ 
 	foreach ($ship in $combatShips) 
 	{ 
-		$tI = $turn-1
 		write-verbose ("Executing turn {0} orders for {1}" -f $turn, $ship.Name )
 		$attacker = $ship
-		$defender = @($GameState.ShipSpecs | ? { $_.ID -eq  $attacker.TurnOrders[$tI].Target})[0]
-		$result = execute-TurnOrder -attacker $attacker -defender $defender -attackerOrders ($attacker.TurnOrders[$tI]) -defenderOrders ($defender.TurnOrders[$tI]) -verbose
+		#$defender = @($GameState.ShipSpecs | ? { $_.ID -eq  $attacker.TurnOrders[$tI].Target})[0]
+		$result = execute-TurnOrder $attacker $turn $GameState -verbose
 		if($result) { write-verbose "Turn executed successfully"         }
 		else        { write-verbose "Turn did not execute successfully?" }
 		write-verbose "Turn completed, proceeding..."

@@ -20,51 +20,93 @@ function execute-TurnOrder()
 	[cmdletBinding()]
 	param (
 		  $attacker
-		, $defender
-		, $attackerOrders
-		, $defenderOrders
+		  , $turn
+		  , $gameConfig
 	)
 	
-	$a  = $attacker
-	$d  = $defender
-	$ao = $attackerOrders
-	$do = $defenderOrders
+	$a        = $attacker
+	$aTL      = [Math]::Min((NullCoalesce($a.TL, 1)), 1)
+	$ao       = $a.TurnOrders[$turn-1]
+	$apo      = $ao.PowerAllocation
+	$aDrive   = NullCoalesce($apo.PD , 0)
+	$crt      = $gameConfig.CombatResults
+	$maxDelta = NullCoalesce($gameConfig.Constants.Combat_max_DriveDiff, 5)
 	
-	write-verbose ( "[ENGINE:Execute-TurnOrder] {0} attacks {1}!" -f $a.Name, $d.Name )
-	write-verbose ( "[ENGINE:Execute-TurnOrder]     Orders: {0} : {1} at Drive {2} vs {3} : {4} at Drive {5}" -f $a.Name, $ao.Tactic, $ao.PowerAllocation.PD, $d.Name, $do.Tactic, $do.PowerAllocation.PD)
+	write-verbose ( "[ENGINE:Execute-TurnOrder]     Orders: {0} : {1} at Drive {2}" -f $a.Name, $ao.Tactic, $ao.PowerAllocation.PD)
 	
-	if((Validate-Orders($attacker, $defender, $attackerOrders, $defenderOrders)) -eq $false) { return $false }
+	#if((Validate-Orders($a $ao)) -eq $false) { return $false }
 	
 	#component data structures useful for adjudicating results
-	$weps = $GameData.ComponentSpecs | ? { $_.CompType -eq "Weapon"     } # or $_.RoF -ne $null if you want to be fancy
-	$ammo = $GameData.ComponentSpecs | ? { $_.CompType -eq "Ammunition" }
-	$defs = $GameData.ComponentSpecs | ? { $_.CompType -eq "Defense"    }
-	$hull = $GameData.ComponentSpecs | ? { $_.CompType -eq "Hull"       }
-	$bays = $GameData.ComponentSpecs | ? { $_.CompType -eq "Carry"      }
-	$util = $GameData.ComponentSpecs | ? { $_.CompType -eq "Utility" -or $_.CompType -eq  "Power" }
+	$cs   = $gameConfig.ComponentSpecs
+	$weps = $cs | ? { $_.CompType -eq "Weapon"     } # or $_.RoF -ne $null if you want to be fancy
+	$ammo = $cs | ? { $_.CompType -eq "Ammunition" }
+	$defs = $cs | ? { $_.CompType -eq "Defense"    }
+	$hull = $cs | ? { $_.CompType -eq "Hull"       }
+	$bays = $cs | ? { $_.CompType -eq "Carry"      }
+	$util = $cs | ? { $_.CompType -eq "Utility" -or $_.CompType -eq  "Power" }
 	
-	$aDrive       = $ao.PowerAllocation.PD
-	$dDrive       = $do.PowerAllocation.PD
-	$aTL          = $attacker.TL
-	$dTL          = $defender.TL
-
-	$targetDamage = 0
 	$turnResult   = "Continue"
 	
-	foreach ($weapon in ($weps + $ammo))
+	foreach ($attack in $ao.Attacks)
 	{
-		$wepOrderedPwr = nullCoalesce ($ao.PowerAllocation.$($weapon.Name), 0)
-		$wepName       = $weapon.Name		
+		$d       = $gameConfig.ShipSpecs | where {$_.ID -eq $attack.Target}
+		$dName   = $d.Name
+		$dTL     = [Math]::Min((NullCoalesce($d.TL, 1)), 1)
+		$do      = $d.TurnOrders[$turn-1]
+		$dTactic = nullCoalesce ($do.Tactic, "??")
+		$dDrv    = nullCoalesce ($do.PowerAllocation.PD, -1)
+		$dECM    = nullCoalesce ($do.PowerAllocation.E , 0)
+		
+		$aWeapon = nullCoalesce ($attack.Weapon, "??")
+		$aRoF    = nullCoalesce ($attack.RoF, 1)
+		$aTactic = nullCoalesce ($ao.Tactic, "??")
+		$aDrv    = nullCoalesce ($attack.WeaponDrive, $aDrive)
+		$aWeaponPower  = nullCoalesce ($attack.Power, $ao.PowerAllocation.$aWeapon, 0)
+		
+		
+		write-verbose ("     - [{0}]({1}) with {2} shot(s) from {3} - {4} at speed {5} vs [{6}]({7}) {8} at speed {9} and ECM {10} -- TL {11} vs {12}" -f $a.Name, $a.ID, $aRoF, $aWeapon, $aTactic, $aDrv, $dName, $attack.Target, $dTactic, $dDrv, $dECM, $aTL, $dTL)
+		
+		$wepResult = Calculate-CombatResult $aTactic $dTactic $aDrv $dDrv $crt $maxdelta $aTL $dTL $dECM
+		if($wepResult -ne "Miss" -and $wepResult -ne "Escapes")
+		{
+			$wepOrderedDamage = Calculate-WeaponDamage $aWeapon $aWeaponPower $aRoF $gameConfig.ComponentSpec 
+			if($wepOrderedDamage -ne 0)
+			{
+				write-verbose ( "{0}Target hit for {1} damage!" -f "[ENGINE:Execute-TurnOrder]     ", $wepOrderedDamage)
+			}
+		}
+		if($wepResult -eq "Miss")
+		{
+			write-verbose ("{0} {1} attack with {2} missed {3} !" -f "[ENGINE:Execute-TurnOrder]     ", $attacker.Name, $wepName, $defender.Name)
+		}
+		
+		if($wepResult -eq "Escapes")
+		{
+			write-verbose ("{0} {1} attack with {2} missed and permitted {3} to escape!" -f "[ENGINE:Execute-TurnOrder]     ", $attacker.Name, $wepName, $defender.Name)
+			$turnResult="Escapes"
+		}
+	}
+	
+	
+	write-verbose ( "[ENGINE:Execute-TurnOrder] Result: {0}" -f $turnResult )
+	$turnResult
+}
+<# 	foreach ($weapon in $weps)
+	{
+		$wepName          = $weapon.Name		
+		$wepOrderedRoF    = NullCoalesce($ao.
+		$wepOrderedPwr    = NullCoalesce($ao.PowerAllocation.$($wepName), 0)
+		$wepOrderedDrive  = NullCoalesce((Get-OrderedWeaponDrive $ao $wepName), $aDrive)
+		$maxDelta         = NullCoalesce($gameConfig.Constants.Combat_max_DriveDiff, 5)
+		write-verbose ( "{0}Evaluate attack for {1}, allocated {2} power, drive {3} vs defender {4}" -f "[ENGINE:Execute-TurnOrder]     ", $wepName, $wepOrderedPwr, $wepOrderedDrive, $aDrive )
 		
 		#Direct-fire weapons, e.g. Beams and Shells (presuming Cannons were activated, as confirmed in Validate-Orders)
-		if($weapon.Damage -gt 0 -and $wepOrderedPwr -gt 0)
+		if($wepOrderedPwr -gt 0)
 		{
-			$wepOrderedDrive  = nullCoalesce((Get-OrderedWeaponDrive $ao $wepName), $aDrive)
-			write-verbose ( "{0}Evaluate attack for {1}, allocated {2} power, drive {3} vs defender {4}" -f "[ENGINE:Execute-TurnOrder]     ", $wepName, $wepOrderedPwr, $wepOrderedDrive, $aDrive )
-			$wepResult = Calculate-CombatResult $ao.Tactic $do.Tactic $aDrive $dDrive
+			$wepResult = Calculate-CombatResult $ao.Tactic $do.Tactic $wepOrderedDrive $dDrive $crt $maxdelta $aTL $dTL $do.PowerAllocation.ECM
 			if($wepResult -ne "Miss" -and $wepResult -ne "Escapes")
 			{
-				$wepOrderedDamage = Calculate-WeaponDamage $wepName $wepOrderedPwr $wepOrderedDrive $dDrive $aTL $dTL $ao $do $wepResult 
+				$wepOrderedDamage = Calculate-WeaponDamage $wepName $wepOrderedPwr $wepOrderedRoF $wepOrderedDrive $dDrive $aTL $dTL $ao $do $wepResult 
 				if($wepOrderedDamage -ne 0)
 				{
 					write-verbose ( "{0}Target hit for {1} damage!" -f "[ENGINE:Execute-TurnOrder]     ", $wepOrderedDamage)
@@ -81,10 +123,7 @@ function execute-TurnOrder()
 				$turnResult="Escapes"
 			}
 		}
-	}
-	write-verbose ( "[ENGINE:Execute-TurnOrder] Result: {0}" -f $turnResult )
-	$turnResult
-}
+	} #>
 
 function init-ShipsFromTemplate()
 {
@@ -271,16 +310,6 @@ function Validate-Orders()
 	$true
 }
 
-function Get-OrderedWeaponDrive()
-{
-	[CmdletBinding()]
-	param(
-		  $orders
-		, $weaponName
-	)
-	write-verbose "[ENGINE:Get-OrderedWeaponDrive]      Find unresolved attacker drive orders for weapon $weaponName"
-	$null
-}
 
 function Calculate-CombatResult()
 {
@@ -290,181 +319,36 @@ function Calculate-CombatResult()
 	, $dTac
 	, $aDrive
 	, $dDrive
+	, $CRT           #Combat Results Table lookup object, structured for lookups like AttackerTactic.DefenderTactic[DriveDiff]
+	, $maxDelta      #Maximum absolute value of drive difference - all out-of-bounds results are Miss or Escapes
+	, $aTL           #TL and ECM not yet implemented (for missiles)
+	, $dTL           #TL and ECM not yet implemented (for missiles)
+	, $dECM          #TL and ECM not yet implemented (for missiles)
 	)
 	
-	$driveDiff  = $aDrive - $dDrive
-	if( $driveDiff -gt  5 ) { $driveDiff= 5 }
-	if( $driveDiff -lt -5 ) { $driveDiff=-5 }
+	$driveDiff       = $aDrive - $dDrive
+	$driveDiffIndex  = [Math]::Min([Math]::Max(-$maxDelta, $driveDiff), $maxDelta) + $maxDelta
 	
-	$tacPairing = "{0}:{1}" -f $aTac, $dTac
-
-	#AttackerTactic.DefenderTactic[DriveDiff]
-						  #(   -5          -4          -3         -2          -1          0           1             2          3          4           5      )
-	$CombatResults = @{
-		"Attack"  = @{
-		 	  "Attack"  = @("Miss"    , "Miss"    , "Miss"    , "Hit"     , "Hit"     , "Hit+2"   , "Hit+2"   , "Hit+1"   , "Miss"    , "Miss"    , "Miss"   )
-			; "Dodge"   = @("Miss"    , "Miss"    , "Miss"    , "Miss"    , "Miss"    , "Miss"    , "Miss"    , "Hit+1"   , "Hit"     , "Hit"     , "Miss"   )
-			; "Retreat" = @("Escapes" , "Escapes" , "Escapes" , "Escapes" , "Escapes" , "Miss"    , "Miss"    , "Miss"    , "Hit"     , "Hit"     , "Miss"   )
-		}                                                                                                                                                    
-		; "Dodge"   = @{                                                                                                                                     
-			  "Attack"  = @("Miss"    , "Miss"    , "Miss"    , "Miss"    , "Hit"     , "Hit"     , "Hit"     , "Hit"     , "Miss"    , "Miss"    , "Miss"   )
-		    ; "Dodge"   = @("Miss"    , "Miss"    , "Hit"     , "Hit"     , "Hit"     , "Hit"     , "Miss"    , "Miss"    , "Miss"    , "Miss"    , "Miss"   )
-		    ; "Retreat" = @("Escapes" , "Escapes" , "Escapes" , "Escapes" , "Escapes" , "Escapes" , "Escapes" , "Escapes" , "Escapes" , "Escapes" ,"Escapes" )
-		}
-		; "Retreat" = @{
-			  "Attack"  = @("Miss"    , "Miss"    , "Miss"    , "Miss"    , "Hit"     , "Hit"     , "Miss"    , "Miss"    , "Miss"    , "Miss"    , "Miss"   )
-		    ; "Dodge"   = @("Miss"    , "Miss"    , "Miss"    , "Miss"    , "Miss"    , "Miss"    , "Miss"    , "Miss"    , "Miss"    , "Miss"    , "Miss"   )
-		    ; "Retreat" = @("Escapes" , "Escapes" , "Escapes" , "Escapes" , "Escapes" , "Escapes" , "Escapes" , "Escapes" , "Escapes" , "Escapes" ,"Escapes" )
-		}
+	write-verbose("[ENGINE:Calculate-CombatResult]          {0} vs {1} at Drive {2}-{3}=>{4} (read as {5}) = {6}" -f $aTac, $dTac, $aDrive, $dDrive, $driveDiff, $driveDiffIndex, $CRT.$aTac.$dTac[$driveDiffIndex])
 	
-	}
-	
-	switch($tacPairing)
-	{
-	Attack:Attack   { 
-						switch($driveDiff)
-						{
-							-5 { $result="Miss" ; break; }
-							-4 { $result="Miss" ; break; }
-							-3 { $result="Miss" ; break; }
-							-2 { $result="Hit"  ; break; }
-							-1 { $result="Hit"  ; break; }
-							 0 { $result="Hit+2"; break; }
-							 1 { $result="Hit+2"; break; }
-							 2 { $result="Hit+1"; break; }
-							 3 { $result="Miss" ; break; }
-							 4 { $result="Miss" ; break; }
-							 5 { $result="Miss" ; break; }
-						}
-						break; 
-					}
-	Attack:Dodge    { 
-						switch($driveDiff)
-						{
-							-5 { $result="Miss"  ; break; }
-							-4 { $result="Miss"  ; break; }
-							-3 { $result="Miss"  ; break; }
-							-2 { $result="Miss"  ; break; }
-							-1 { $result="Miss"  ; break; }
-							 0 { $result="Miss"  ; break; }
-							 1 { $result="Miss"  ; break; }
-							 2 { $result="Hit+1" ; break; }
-							 3 { $result="Hit"   ; break; }
-							 4 { $result="Hit"   ; break; }
-							 5 { $result="Miss"  ; break; }
-						}
-						break; 
-					}
-	Attack:Retreat  { 
-						switch($driveDiff)
-						{
-							-5 { $result="Escapes" ; break; }
-							-4 { $result="Escapes" ; break; }
-							-3 { $result="Escapes" ; break; }
-							-2 { $result="Escapes" ; break; }
-							-1 { $result="Escapes" ; break; }
-							 0 { $result="Miss"    ; break; }
-							 1 { $result="Miss"    ; break; }
-							 2 { $result="Miss"    ; break; }
-							 3 { $result="Hit"     ; break; }
-							 4 { $result="Hit"     ; break; }
-							 5 { $result="Miss"    ; break; }
-						}
-						break; 
-					}
-	Dodge:Attack    { 
-						switch($driveDiff)
-						{
-							-5 { $result="Miss" ; break; }
-							-4 { $result="Miss" ; break; }
-							-3 { $result="Miss" ; break; }
-							-2 { $result="Miss" ; break; }
-							-1 { $result="Hit"  ; break; }
-							 0 { $result="Hit"  ; break; }
-							 1 { $result="Hit"  ; break; }
-							 2 { $result="Hit"  ; break; }
-							 3 { $result="Miss" ; break; }
-							 4 { $result="Miss" ; break; }
-							 5 { $result="Miss" ; break; }
-						}
-						break; 
-					}
-	Dodge:Dodge     { 
-						switch($driveDiff)
-						{
-							-5 { $result="Miss" ; break; }
-							-4 { $result="Miss" ; break; }
-							-3 { $result="Hit"  ; break; }
-							-2 { $result="Hit"  ; break; }
-							-1 { $result="Hit"  ; break; }
-							 0 { $result="Hit"  ; break; }
-							 1 { $result="Miss" ; break; }
-							 2 { $result="Miss" ; break; }
-							 3 { $result="Miss" ; break; }
-							 4 { $result="Miss" ; break; }
-							 5 { $result="Miss" ; break; }
-						}
-						break; 
-					}
-	Dodge:Retreat   { 
-						$result = "Escapes"
-						break; 
-					}
-	Retreat:Attack  { 
-						switch($driveDiff)
-						{
-							-5 { $result="Miss" ; break; }
-							-4 { $result="Miss" ; break; }
-							-3 { $result="Miss" ; break; }
-							-2 { $result="Miss" ; break; }
-							-1 { $result="Hit"  ; break; }
-							 0 { $result="Hit"  ; break; }
-							 1 { $result="Miss" ; break; }
-							 2 { $result="Miss" ; break; }
-							 3 { $result="Miss" ; break; }
-							 4 { $result="Miss" ; break; }
-							 5 { $result="Miss" ; break; }
-						}
-						break; 
-					}
-	Retreat:Dodge   { 
-						$result="Miss"
-						break; 
-					}
-	Retreat:Retreat { 
-						$result="Escapes"
-						break; 
-					}
-	Default         { 
-						$result = "INVALID"; 
-						break; 
-					}
-	}
-	
-	write-verbose "[ENGINE:Calculate-CombatResult]      $tacPairing at $driveDiff => $result"
-	write-verbose("[ENGINE:Calculate-CombatResult]        -- Using hash-array CRT method: {0}" -f $CombatResults.$aTac.$dTac[($driveDiff+5)])
-	
-	$result
+	#return
+	$CRT.$aTac.$dTac[$driveDiffIndex]
 }
 
+#Calculate-WeaponDamage $aWeapon $aWeaponPower $aRoF $gameConfig.ComponentSpec
 function Calculate-WeaponDamage()
 {
 [CmdletBinding()]
 	param(
 		    $wepName
-		  , $wepOrderedPwr
-		  , $aDrive
-		  , $dDrive
-		  , $aTL
-		  , $dTL
-		  , $ao
-		  , $do
+		  , $wepPwr
+		  , $wepRoF
 		  , $result
 	)
 	
 	$weaponDamage = 0
 	
-	$weaponResult = Calculate-CombatResult $ao.Tactic $do.Tactic $aDrive $dDrive
+	$weaponResult = $result
 	
 	
 	#$weaponDamage

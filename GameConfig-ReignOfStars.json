@@ -1,12 +1,31 @@
 {
 	"Constants":{
-	      "Combat_max_rounds":3	
-		, "Hull_damage_value":1  
-		, "TL_addTo_BPLimit" :1  
-		, "TL_addTo_Damage"  :0 
+	      "Combat_max_rounds"    : 3	
+		, "Combat_max_DriveDiff" : 5
+		, "Hull_damage_value"    : 1  
+		, "TL_addTo_BPLimit"     : 1  
+		, "TL_addTo_Damage"      : 0 
         , "#Comment_Hull_damage_value" : "0 for 'vanilla' rules; 1+ makes larger ships tougher than smaller ships with equal armor/shields/ecm."
         , "#Comment_TL_addTo_BPLimit"  : "0 for 'vanilla' rules; 1+ alters the BP-by-size calculation from the static max-size spec to (sqrt(MaxSize) * (sqrt(maxSize) + TL -1))"
         , "#Comment_TL_addTo_Damage"   : "1 for 'vanilla' rules; 0 compensates for the increased damage capability that comes from having more BP for higher-TL ships."		
+	}
+	, "CombatResults":{
+		"Attack"  : {
+		 	  "Attack"  : ["Miss"    , "Miss"    , "Miss"    , "Hit"     , "Hit"     , "Hit+2"   , "Hit+2"   , "Hit+1"   , "Miss"    , "Miss"    , "Miss"   ]
+			, "Dodge"   : ["Miss"    , "Miss"    , "Miss"    , "Miss"    , "Miss"    , "Miss"    , "Miss"    , "Hit+1"   , "Hit"     , "Hit"     , "Miss"   ]
+			, "Retreat" : ["Escapes" , "Escapes" , "Escapes" , "Escapes" , "Escapes" , "Miss"    , "Miss"    , "Miss"    , "Hit"     , "Hit"     , "Miss"   ]
+		}                                                                                                                                                  
+		, "Dodge"  : {                                                                                                                                     
+			  "Attack"  : ["Miss"    , "Miss"    , "Miss"    , "Miss"    , "Hit"     , "Hit"     , "Hit"     , "Hit"     , "Miss"    , "Miss"    , "Miss"   ]
+		    , "Dodge"   : ["Miss"    , "Miss"    , "Hit"     , "Hit"     , "Hit"     , "Hit"     , "Miss"    , "Miss"    , "Miss"    , "Miss"    , "Miss"   ]
+		    , "Retreat" : ["Escapes" , "Escapes" , "Escapes" , "Escapes" , "Escapes" , "Escapes" , "Escapes" , "Escapes" , "Escapes" , "Escapes" ,"Escapes" ]
+		}                                                                                                                                                  
+		, "Retreat" : {                                                                                                                                    
+			  "Attack"  : ["Miss"    , "Miss"    , "Miss"    , "Miss"    , "Hit"     , "Hit"     , "Miss"    , "Miss"    , "Miss"    , "Miss"    , "Miss"   ]
+		    , "Dodge"   : ["Miss"    , "Miss"    , "Miss"    , "Miss"    , "Miss"    , "Miss"    , "Miss"    , "Miss"    , "Miss"    , "Miss"    , "Miss"   ]
+		    , "Retreat" : ["Escapes" , "Escapes" , "Escapes" , "Escapes" , "Escapes" , "Escapes" , "Escapes" , "Escapes" , "Escapes" , "Escapes" ,"Escapes" ]
+		}
+	
 	}
 	, "ComponentSpecs": [
 		  { "Name":"PD" , "BPCost": 1    , "Damage" : 0, "RoF":0, "Defense": 0, "ECM":0, "Hull":0, "MaxSize":  0, "PDPerMP":0, "Cargo": 0, "Power":1, "CompType":"Power"      , "Info" : { "LongName":"Power/Drive"                , "Description":"Total effective strength of a ship's engines."                                        } }
@@ -76,16 +95,27 @@
 		    , "Damage"          : { "ZZZ":1 }
 		    , "PowerAllocation" : { "PD":3, "B":1 }
 		    , "TurnOrders"      : [
-		  						      {
-		  								  "Target"  : "IWS-01-001", "Tactic"         : "Attack"
-		  								, "Shells"  : 0           , "PowerAllocation": { "S":1, "B":1, "PD":2 }
-		  								, "Missiles": []
-		  							  }
+		  						    {
+		  								  "Target"         : "IWS-01-001"
+										, "Tactic"         : "Attack"
+		  								, "PowerAllocation": { "S":1, "B":1, "PD":2 }
+										, "Attacks"        : [
+															   {
+															     "Weapon"         : "B"
+															   , "Target"         : "IWS-01-001"
+															   }
+															 ]
+		  							}
 		  							, {
-		  								  "Target"  : "IWS-01-001", "Tactic"         : "Dodge"
-		  								, "Shells"  : 0           , "PowerAllocation": { "S":1, "B":1, "PD":2 }
-		  								, "Missiles": []
-		  							  }
+										  "Tactic"         : "Attack"
+		  								, "PowerAllocation": { "S":1, "B":1, "PD":2 }
+										, "Attacks"        : [
+															   {
+															     "Weapon"         : "B"
+															   , "Target"         : "IWS-01-001"
+															   }
+															 ]
+									}
 		                          ]
 		  }
 		, {
@@ -96,17 +126,31 @@
 		    , "Racks"           : ["ISS-0A-001", "BOGUS"]
 		    , "Location"        : "SYS001"
 		    , "Damage"          : { "SR":1 }
-		    , "PowerAllocation" : { "S":1, "B":2, "PD":2 }
+		    , "PowerAllocation" : { "S":1, "B":1, "PD":2 }
 		    , "TurnOrders"      : [
 		  						      {
-		  								  "Target"  : "RWS-01-001", "Tactic"         : "Dodge"
-		  								, "Shells"  : 0           , "PowerAllocation": { "S":1, "B":1, "PD":2 }
-		  								, "Missiles": []
+										"Tactic"         : "Attack"
+		  								, "PowerAllocation": { "S":1, "B":1, "PD":2 }
+										, "Attacks"        : [
+															  {
+																 "Weapon"       : "B"
+															   , "Target"       : "RWS-01-001"
+															   , "Power"        : 1
+															  }
+															  ,{
+																  "Weapon"      : "B"
+																, "Target"      : "RWS-01-001"
+																, "RoF"         : 0
+																, "WeaponDrive" : 0
+																, "Power"       : 0
+															  }
+															 ]
 		  							  }
 		  							, {
-		  								  "Target"  : "RWS-01-001", "Tactic"         : "Dodge"
-		  								, "Shells"  : 0           , "PowerAllocation": { "S":1, "B":0, "PD":3 }
-		  								, "Missiles": []
+		  								  "Target"         : "IWS-01-001"
+										, "Tactic"         : "Dodge"
+		  								, "PowerAllocation": { "S":1, "B":0, "PD":3 }
+										, "Attacks"        : []
 		  							  }
 		                          ]
 		  }
