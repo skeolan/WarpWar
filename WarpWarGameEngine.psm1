@@ -24,17 +24,7 @@ function execute-TurnOrder()
 		  , $gameConfig
 	)
 	
-	$a        = $attacker
-	$aTL      = [Math]::Min((NullCoalesce($a.TL, 1)), 1)
-	$ao       = $a.TurnOrders[$turn-1]
-	$apo      = $ao.PowerAllocation
-	$aDrive   = NullCoalesce($apo.PD , 0)
-	$crt      = $gameConfig.CombatResults
-	$maxDelta = NullCoalesce($gameConfig.Constants.Combat_max_DriveDiff, 5)
 	
-	write-verbose ( "[ENGINE:Execute-TurnOrder]     Orders: {0} : {1} at Drive {2}" -f $a.Name, $ao.Tactic, $ao.PowerAllocation.PD)
-	
-	#if((Validate-Orders($a $ao)) -eq $false) { return $false }
 	
 	#component data structures useful for adjudicating results
 	$cs   = $gameConfig.ComponentSpecs
@@ -45,85 +35,92 @@ function execute-TurnOrder()
 	$bays = $cs | ? { $_.CompType -eq "Carry"      }
 	$util = $cs | ? { $_.CompType -eq "Utility" -or $_.CompType -eq  "Power" }
 	
-	$turnResult   = "Continue"
+	$attackResults = @()
+	
+	$ao       = $attacker.TurnOrders[$turn-1]
+	#if((Validate-Orders($a $ao)) -eq $false) { return $false }
 	
 	foreach ($attack in $ao.Attacks)
 	{
-		$d       = $gameConfig.ShipSpecs | where {$_.ID -eq $attack.Target}
-		$dName   = $d.Name
-		$dTL     = [Math]::Min((NullCoalesce($d.TL, 1)), 1)
-		$do      = $d.TurnOrders[$turn-1]
-		$dTactic = nullCoalesce ($do.Tactic, "??")
-		$dDrv    = nullCoalesce ($do.PowerAllocation.PD, -1)
-		$dECM    = nullCoalesce ($do.PowerAllocation.E , 0)
-		
-		$aWeapon = nullCoalesce ($attack.Weapon, "??")
-		$aRoF    = nullCoalesce ($attack.RoF, 1)
-		$aTactic = nullCoalesce ($ao.Tactic, "??")
-		$aDrv    = nullCoalesce ($attack.WeaponDrive, $aDrive)
-		$aWeaponPower  = nullCoalesce ($attack.Power, $ao.PowerAllocation.$aWeapon, 0)
-		
-		
-		write-verbose ("     - [{0}]({1}) with {2} shot(s) from {3} - {4} at speed {5} vs [{6}]({7}) {8} at speed {9} and ECM {10} -- TL {11} vs {12}" -f $a.Name, $a.ID, $aRoF, $aWeapon, $aTactic, $aDrv, $dName, $attack.Target, $dTactic, $dDrv, $dECM, $aTL, $dTL)
-		
-		$wepResult = Calculate-CombatResult $aTactic $dTactic $aDrv $dDrv $crt $maxdelta $aTL $dTL $dECM
-		if($wepResult -ne "Miss" -and $wepResult -ne "Escapes")
-		{
-			$wepOrderedDamage = Calculate-WeaponDamage $aWeapon $aWeaponPower $aRoF $gameConfig.ComponentSpec 
-			if($wepOrderedDamage -ne 0)
-			{
-				write-verbose ( "{0}Target hit for {1} damage!" -f "[ENGINE:Execute-TurnOrder]     ", $wepOrderedDamage)
-			}
-		}
-		if($wepResult -eq "Miss")
-		{
-			write-verbose ("{0} {1} attack with {2} missed {3} !" -f "[ENGINE:Execute-TurnOrder]     ", $attacker.Name, $wepName, $defender.Name)
-		}
-		
-		if($wepResult -eq "Escapes")
-		{
-			write-verbose ("{0} {1} attack with {2} missed and permitted {3} to escape!" -f "[ENGINE:Execute-TurnOrder]     ", $attacker.Name, $wepName, $defender.Name)
-			$turnResult="Escapes"
-		}
+		$attackResult = resolve-Attack $gameConfig $attacker $ao $attack
+		$attackResults += $attackResult
 	}
 	
 	
-	write-verbose ( "[ENGINE:Execute-TurnOrder] Result: {0}" -f $turnResult )
-	$turnResult
+	write-verbose ( "[ENGINE:Execute-TurnOrder] Result: {0} attacks resolved" -f $attackResults.Count )
+	$attackResults
 }
-<# 	foreach ($weapon in $weps)
+
+function Resolve-Attack()
+{
+	[cmdletBinding()]
+	param (
+		$gameConfig
+		, $attacker
+		, $ao
+		, $attack
+	)
+	
+	$attackResult = @{
+		"attacker"     = $attacker.ID;
+		"target"       = $attack.Target;
+		"turnResult"   = "Continue";
+		"crtResult"    = "";
+		"damage"       = 0;
+		"attackType"   = "direct";
+	}
+	
+	if((nullCoalesce($attack.WeaponDrive, 0)) -ne 0) 
 	{
-		$wepName          = $weapon.Name		
-		$wepOrderedRoF    = NullCoalesce($ao.
-		$wepOrderedPwr    = NullCoalesce($ao.PowerAllocation.$($wepName), 0)
-		$wepOrderedDrive  = NullCoalesce((Get-OrderedWeaponDrive $ao $wepName), $aDrive)
-		$maxDelta         = NullCoalesce($gameConfig.Constants.Combat_max_DriveDiff, 5)
-		write-verbose ( "{0}Evaluate attack for {1}, allocated {2} power, drive {3} vs defender {4}" -f "[ENGINE:Execute-TurnOrder]     ", $wepName, $wepOrderedPwr, $wepOrderedDrive, $aDrive )
-		
-		#Direct-fire weapons, e.g. Beams and Shells (presuming Cannons were activated, as confirmed in Validate-Orders)
-		if($wepOrderedPwr -gt 0)
+		$attackResult.attackType = "indirect"
+	}
+	
+	write-verbose ( "[ENGINE:Resolve-Attack]     Orders: {0} : {1} at Drive {2}" -f $a.Name, $ao.Tactic, $ao.PowerAllocation.PD)
+	$a        = $attacker
+	$aTL      = [Math]::Min((NullCoalesce($a.TL, 1)), 1)
+	$apo      = NullCoalesce($ao.PowerAllocation, $a.PowerAllocation)
+	$aDrive   = NullCoalesce($apo.PD , 0)
+	$crt      = $gameConfig.CombatResults
+	$maxDelta = NullCoalesce($gameConfig.Constants.Combat_max_DriveDiff, 5)
+	$d       = $gameConfig.ShipSpecs | where {$_.ID -eq $attack.Target}
+	$dName   = $d.Name
+	$dTL     = [Math]::Min((NullCoalesce($d.TL, 1)), 1)
+	$do      = $d.TurnOrders[$turn-1]
+	$dTactic = nullCoalesce ($do.Tactic, "??")
+	$dDrv    = nullCoalesce ($do.PowerAllocation.PD, -1)
+	$dECM    = nullCoalesce ($do.PowerAllocation.E , 0)
+	
+	$aWeapon = nullCoalesce ($attack.Weapon, "??")
+	$aRoF    = nullCoalesce ($attack.RoF, 1)
+	$aTactic = nullCoalesce ($ao.Tactic, "??")
+	$aDrv    = nullCoalesce ($attack.WeaponDrive, $aDrive)
+	$aWeaponPower  = nullCoalesce ($attack.Power, $ao.PowerAllocation.$aWeapon, 0)
+	
+	
+	write-verbose ("[ENGINE:Resolve-Attack]     - [{0}]({1}) with {2} shot(s) from {3} - {4} at speed {5} vs [{6}]({7}) {8} at speed {9} and ECM {10} -- TL {11} vs {12}" -f $a.Name, $a.ID, $aRoF, $aWeapon, $aTactic, $aDrv, $dName, $attack.Target, $dTactic, $dDrv, $dECM, $aTL, $dTL)
+	
+	$attackResult.crtResult = Calculate-CombatResult $aTactic $dTactic $aDrv $dDrv $crt $maxdelta $aTL $dTL $dECM
+	if($attackResult.crtResult -ne "Miss" -and $attackResult.crtResult -ne "Escapes")
+	{
+		$attackResult.Damage = Calculate-WeaponDamage $aWeapon $aWeaponPower $aRoF $gameConfig.ComponentSpec $attackResult.crtResult 
+		if($attackResult.Damage -ne 0)
 		{
-			$wepResult = Calculate-CombatResult $ao.Tactic $do.Tactic $wepOrderedDrive $dDrive $crt $maxdelta $aTL $dTL $do.PowerAllocation.ECM
-			if($wepResult -ne "Miss" -and $wepResult -ne "Escapes")
-			{
-				$wepOrderedDamage = Calculate-WeaponDamage $wepName $wepOrderedPwr $wepOrderedRoF $wepOrderedDrive $dDrive $aTL $dTL $ao $do $wepResult 
-				if($wepOrderedDamage -ne 0)
-				{
-					write-verbose ( "{0}Target hit for {1} damage!" -f "[ENGINE:Execute-TurnOrder]     ", $wepOrderedDamage)
-				}
-			}
-			if($wepResult -eq "Miss")
-			{
-				write-verbose ("{0} {1} attack with {2} missed {3} !" -f "[ENGINE:Execute-TurnOrder]     ", $attacker.Name, $wepName, $defender.Name)
-			}
-			
-			if($wepResult -eq "Escapes")
-			{
-				write-verbose ("{0} {1} attack with {2} missed and permitted {3} to escape!" -f "[ENGINE:Execute-TurnOrder]     ", $attacker.Name, $wepName, $defender.Name)
-				$turnResult="Escapes"
-			}
+			write-verbose ( "{0}Target hit for {1} damage!" -f "[ENGINE:Resolve-Attack]     ", $attackResult.Damage)
 		}
-	} #>
+	}
+	if($wepResult -eq "Miss")
+	{
+		write-verbose ("{0} {1} attack with {2} missed {3} !" -f "[ENGINE:Resolve-Attack]     ", $attacker.Name, $wepName, $defender.Name)
+	}
+	
+	if($wepResult -eq "Escapes")
+	{
+		write-verbose ("{0} {1} attack with {2} missed and permitted {3} to escape!" -f "[ENGINE:Resolve-Attack]     ", $attacker.Name, $wepName, $defender.Name)
+		$attackResult.turnResult="Escapes"
+	}
+	
+	$attackResult
+}
 
 function init-ShipsFromTemplate()
 {
@@ -335,7 +332,7 @@ function Calculate-CombatResult()
 	$CRT.$aTac.$dTac[$driveDiffIndex]
 }
 
-#Calculate-WeaponDamage $aWeapon $aWeaponPower $aRoF $gameConfig.ComponentSpec
+#$aWeapon $aWeaponPower $aRoF $gameConfig.ComponentSpec $attackResult.crtResult 
 function Calculate-WeaponDamage()
 {
 [CmdletBinding()]
@@ -343,15 +340,10 @@ function Calculate-WeaponDamage()
 		    $wepName
 		  , $wepPwr
 		  , $wepRoF
+		  , $cSpec
 		  , $result
 	)
 	
-	$weaponDamage = 0
-	
-	$weaponResult = $result
-	
-	
-	#$weaponDamage
 	-99
 }
 

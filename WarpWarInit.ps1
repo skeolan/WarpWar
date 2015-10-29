@@ -24,21 +24,42 @@ write-verbose ("`n"+"`n"+ (printShipInfo -s $GameState.ShipTemplate -includeZero
 write-verbose "SHIPS"
 write-verbose ("`n"+( $GameState.ShipSpecs    | % { "`n"; printShipInfo -s $_ } | out-string))
 
-$combatShips = $GameState.ShipSpecs | ? { $_.TurnOrders -ne $null }
-foreach($turn in (1,2) ) 
+$numTurns     = 2
+$combatShips  = $GameState.ShipSpecs | ? { $_.TurnOrders -ne $null }
+$combatResult = @{}
+
+foreach($turn in (1..$numTurns) ) 
 	{ 
+	$resultSet = @()
 	foreach ($ship in $combatShips) 
 	{ 
 		write-verbose ("Executing turn {0} orders for {1}" -f $turn, $ship.Name )
-		$attacker = $ship
-		#$defender = @($GameState.ShipSpecs | ? { $_.ID -eq  $attacker.TurnOrders[$tI].Target})[0]
-		$result = execute-TurnOrder $attacker $turn $GameState -verbose
-		if($result) { write-verbose "Turn executed successfully"         }
-		else        { write-verbose "Turn did not execute successfully?" }
+		$attacker      = $ship
+		$attackResults     = execute-TurnOrder $attacker $turn $GameState -verbose
+		if($attackResults) 
+					{ 
+						write-verbose "Turn $turn for $($attacker.Name) executed successfully"
+						write-verbose "$($resultSet.Count) attack results"
+						$resultSet += $attackResults
+					}
+		else           { write-verbose "Turn did not execute successfully?" }
 		write-verbose "Turn completed, proceeding..."
 	} 
+	#Apply $resultSet to gamestate
+	#Remove any escaped or destroyed ships from $combatShips
+	$combatResult."Turn$turn" = ($resultSet) #Commit set of attack results to the combatResult array
 }
 
 write-verbose "Combat completed!"
+write-verbose "Combat results:"
+foreach($key in ($CombatResult.Keys | sort)) 
+{ 
+	write-verbose $key
+	write-verbose "$($CombatResult[$key].Count) attack(s)" 
+	foreach($atk in $CombatResult[$key]) 
+	{ 
+		write-verbose ("{0,-10} {4,-7} {1,-10} for {1,4} ( {3}, {4}, {5} )" -f $atk.attacker, $atk.target, $atk.damage, $atk.attackType, $atk.crtResult, $atk.turnResult); 
+	} 
+}
 
-$GameState
+@{GameState = $GameState; CombatResults=$combatResult}

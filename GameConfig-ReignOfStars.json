@@ -4,13 +4,14 @@
 		, "Combat_max_DriveDiff" : 5
 		, "Hull_damage_value"    : 1  
 		, "TL_addTo_BPLimit"     : 1  
-		, "TL_addTo_Damage"      : 0 
+		, "TL_noBonus_Damage"    : 0 
         , "#Comment_Hull_damage_value" : "0 for 'vanilla' rules; 1+ makes larger ships tougher than smaller ships with equal armor/shields/ecm."
         , "#Comment_TL_addTo_BPLimit"  : "0 for 'vanilla' rules; 1+ alters the BP-by-size calculation from the static max-size spec to (sqrt(MaxSize) * (sqrt(maxSize) + TL -1))"
-        , "#Comment_TL_addTo_Damage"   : "1 for 'vanilla' rules; 0 compensates for the increased damage capability that comes from having more BP for higher-TL ships."		
+        , "#Comment_TL_addTo_Damage"   : "0 (False) for 'vanilla' rules; 1 (True) for no bonus damage from TL."
 	}
 	, "CombatResults":{
-		"Attack"  : {
+		"#Comment" : "Address as CombatResults.<AttackerTactic>.<DefenderTactic>[<DriveDiff>+<Constants.Combat_max_DriveDiff>]"
+		, "Attack"  : {
 		 	  "Attack"  : ["Miss"    , "Miss"    , "Miss"    , "Hit"     , "Hit"     , "Hit+2"   , "Hit+2"   , "Hit+1"   , "Miss"    , "Miss"    , "Miss"   ]
 			, "Dodge"   : ["Miss"    , "Miss"    , "Miss"    , "Miss"    , "Miss"    , "Miss"    , "Miss"    , "Hit+1"   , "Hit"     , "Hit"     , "Miss"   ]
 			, "Retreat" : ["Escapes" , "Escapes" , "Escapes" , "Escapes" , "Escapes" , "Miss"    , "Miss"    , "Miss"    , "Hit"     , "Hit"     , "Miss"   ]
@@ -96,8 +97,7 @@
 		    , "PowerAllocation" : { "PD":3, "B":1 }
 		    , "TurnOrders"      : [
 		  						    {
-		  								  "Target"         : "IWS-01-001"
-										, "Tactic"         : "Attack"
+		  								  "Tactic"         : "Attack"
 		  								, "PowerAllocation": { "S":1, "B":1, "PD":2 }
 										, "Attacks"        : [
 															   {
@@ -107,7 +107,7 @@
 															 ]
 		  							}
 		  							, {
-										  "Tactic"         : "Attack"
+										  "Tactic"         : "Dodge"
 		  								, "PowerAllocation": { "S":1, "B":1, "PD":2 }
 										, "Attacks"        : [
 															   {
@@ -129,8 +129,8 @@
 		    , "PowerAllocation" : { "S":1, "B":1, "PD":2 }
 		    , "TurnOrders"      : [
 		  						      {
-										"Tactic"         : "Attack"
-		  								, "PowerAllocation": { "S":1, "B":1, "PD":2 }
+										  "Tactic"         : "Attack"
+										, "PowerAllocation": { "S":1, "B":1, "PD":2 }
 										, "Attacks"        : [
 															  {
 																 "Weapon"       : "B"
@@ -147,8 +147,7 @@
 															 ]
 		  							  }
 		  							, {
-		  								  "Target"         : "IWS-01-001"
-										, "Tactic"         : "Dodge"
+										  "Tactic"         : "Dodge"
 		  								, "PowerAllocation": { "S":1, "B":0, "PD":3 }
 										, "Attacks"        : []
 		  							  }
