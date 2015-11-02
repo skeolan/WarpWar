@@ -143,6 +143,7 @@
 																, "RoF"         : 0
 																, "WeaponDrive" : 0
 																, "Power"       : 0
+																, "WeaponAmmo"  : "M"
 															  }
 															 ]
 		  							  }

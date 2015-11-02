@@ -76,25 +76,32 @@ function Resolve-Attack()
 	}
 	
 	write-verbose ( "[ENGINE:Resolve-Attack]     Orders: {0} : {1} at Drive {2}" -f $a.Name, $ao.Tactic, $ao.PowerAllocation.PD)
-	$a        = $attacker
-	$aTL      = [Math]::Min((NullCoalesce($a.TL, 1)), 1)
-	$apo      = NullCoalesce($ao.PowerAllocation, $a.PowerAllocation)
-	$aDrive   = NullCoalesce($apo.PD , 0)
 	$crt      = $gameConfig.CombatResults
 	$maxDelta = NullCoalesce($gameConfig.Constants.Combat_max_DriveDiff, 5)
+
+	$a        = $attacker
+	$aName    = $a.Name
+	$aTL      = [Math]::Min((NullCoalesce($a.TL, 1)), 1)
+	$ao       = $ao
+	$apo      = NullCoalesce($ao.PowerAllocation, $a.PowerAllocation)
+	$aTactic  = NullCoalesce($ao.Tactic, "??")
+	$aDrv     = NullCoalesce($attack.WeaponDrive, $apo.PD, 0)
+	$aECM     = NullCoalesce($apo.E, 0)
+
 	$d       = $gameConfig.ShipSpecs | where {$_.ID -eq $attack.Target}
 	$dName   = $d.Name
 	$dTL     = [Math]::Min((NullCoalesce($d.TL, 1)), 1)
 	$do      = $d.TurnOrders[$turn-1]
+	$dpo     = nullCoalesce($do.PowerAllocation, $d.PowerAllocation)
 	$dTactic = nullCoalesce ($do.Tactic, "??")
-	$dDrv    = nullCoalesce ($do.PowerAllocation.PD, -1)
-	$dECM    = nullCoalesce ($do.PowerAllocation.E , 0)
+	$dDrv    = nullCoalesce ($dpo.PD, -1)	
+	$dECM    = nullCoalesce ($dpo.E , 0)
 	
 	$aWeapon = nullCoalesce ($attack.Weapon, "??")
 	$aRoF    = nullCoalesce ($attack.RoF, 1)
+	$aAmmo   = nullCoalesce ($attack.WeaponAmmo, $aWeapon)
 	$aTactic = nullCoalesce ($ao.Tactic, "??")
-	$aDrv    = nullCoalesce ($attack.WeaponDrive, $aDrive)
-	$aWeaponPower  = nullCoalesce ($attack.Power, $ao.PowerAllocation.$aWeapon, 0)
+	$aWeaponPower  = nullCoalesce ($attack.Power, $apo.$aWeapon, 0)
 	
 	
 	write-verbose ("[ENGINE:Resolve-Attack]     - [{0}]({1}) with {2} shot(s) from {3} - {4} at speed {5} vs [{6}]({7}) {8} at speed {9} and ECM {10} -- TL {11} vs {12}" -f $a.Name, $a.ID, $aRoF, $aWeapon, $aTactic, $aDrv, $dName, $attack.Target, $dTactic, $dDrv, $dECM, $aTL, $dTL)
@@ -102,7 +109,7 @@ function Resolve-Attack()
 	$attackResult.crtResult = Calculate-CombatResult $aTactic $dTactic $aDrv $dDrv $crt $maxdelta $aTL $dTL $dECM
 	if($attackResult.crtResult -ne "Miss" -and $attackResult.crtResult -ne "Escapes")
 	{
-		$attackResult.Damage = Calculate-WeaponDamage $aWeapon $aWeaponPower $aRoF $gameConfig.ComponentSpec $attackResult.crtResult 
+		$attackResult.Damage = Calculate-WeaponDamage $aWeapon $aWeaponPower $aRoF $gameConfig.ComponentSpecs $attackResult.crtResult $aAmmo 
 		if($attackResult.Damage -ne 0)
 		{
 			write-verbose ( "{0}Target hit for {1} damage!" -f "[ENGINE:Resolve-Attack]     ", $attackResult.Damage)
@@ -332,7 +339,7 @@ function Calculate-CombatResult()
 	$CRT.$aTac.$dTac[$driveDiffIndex]
 }
 
-#$aWeapon $aWeaponPower $aRoF $gameConfig.ComponentSpec $attackResult.crtResult 
+#$aWeapon $aWeaponPower $aRoF $gameConfig.ComponentSpec $attackResult.crtResult $aAmmo 
 function Calculate-WeaponDamage()
 {
 [CmdletBinding()]
@@ -342,7 +349,14 @@ function Calculate-WeaponDamage()
 		  , $wepRoF
 		  , $cSpec
 		  , $result
+		  , $wepAmmo
 	)
+	
+	$weaponSpec = @($cSpec | ? { $_.Name -eq $wepName })[0]
+	$wepAmmo    = nullCoalesce $wepAmmo, $wepName
+	$ammoSpec   = @($cSpec | ? { $_.Name -eq $wepAmmo })[0]
+	$damageBase = $ammoSpec.Damage
+	write-verbose ("CALCULATE-WEAPONDAMAGE: Base damage per shot/pwr for weapon '{0}' (ammo '{1}') is [{2}]" -f $wepName, $wepAmmo, $damageBase)
 	
 	-99
 }
