@@ -58,7 +58,8 @@ foreach($key in ($CombatResult.Keys | sort))
 	write-verbose "$($CombatResult[$key].Count) attack(s)" 
 	foreach($atk in $CombatResult[$key]) 
 	{ 
-		write-verbose ("{0,-10} {4,-7} {1,-10} for {2,4} ( {3}, {4}, {5} )" -f $atk.attacker, $atk.target, $atk.damage, $atk.attackType, $atk.crtResult, $atk.turnResult); 
+		write-verbose ("{0,-10} {4,-7} {1,-10} with {6, 3}/{7, -3} for {2,4} ( {3}, {4}, {5} )" `
+		-f $atk.attacker, $atk.target, $atk.damage, $atk.attackType, $atk.crtResult, $atk.turnResult, $atk.weapon, $atk.ammo); 
 	} 
 }
 

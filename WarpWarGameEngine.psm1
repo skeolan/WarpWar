@@ -61,19 +61,6 @@ function Resolve-Attack()
 		, $attack
 	)
 	
-	$attackResult = @{
-		"attacker"     = $attacker.ID;
-		"target"       = $attack.Target;
-		"turnResult"   = "Continue";
-		"crtResult"    = "";
-		"damage"       = 0;
-		"attackType"   = "direct";
-	}
-	
-	if((nullCoalesce($attack.WeaponDrive, 0)) -ne 0) 
-	{
-		$attackResult.attackType = "indirect"
-	}
 	
 	write-verbose ( "[ENGINE:Resolve-Attack]     Orders: {0} : {1} at Drive {2}" -f $a.Name, $ao.Tactic, $ao.PowerAllocation.PD)
 	$crt      = $gameConfig.CombatResults
@@ -103,6 +90,21 @@ function Resolve-Attack()
 	$aTactic = nullCoalesce ($ao.Tactic, "??")
 	$aWeaponPower  = nullCoalesce ($attack.Power, $apo.$aWeapon, 0)
 	
+	$attackResult = @{
+		"attacker"     = $attacker.ID;
+		"weapon"       = $aWeapon;
+		"ammo"         = $aAmmo;
+		"target"       = $d.ID;
+		"turnResult"   = "Continue";
+		"crtResult"    = "";
+		"damage"       = 0;
+		"attackType"   = "direct";
+	}
+	
+	if((nullCoalesce($attack.WeaponDrive, 0)) -ne 0) 
+	{
+		$attackResult.attackType = "indirect"
+	}
 	
 	write-verbose ("[ENGINE:Resolve-Attack]     - [{0}]({1}) with {2} shot(s) from {3} - {4} at speed {5} vs [{6}]({7}) {8} at speed {9} and ECM {10} -- TL {11} vs {12}" -f $a.Name, $a.ID, $aRoF, $aWeapon, $aTactic, $aDrv, $dName, $attack.Target, $dTactic, $dDrv, $dECM, $aTL, $dTL)
 	
@@ -352,13 +354,20 @@ function Calculate-WeaponDamage()
 		  , $wepAmmo
 	)
 	
-	$weaponSpec = @($cSpec | ? { $_.Name -eq $wepName })[0]
-	$wepAmmo    = nullCoalesce $wepAmmo, $wepName
-	$ammoSpec   = @($cSpec | ? { $_.Name -eq $wepAmmo })[0]
-	$damageBase = $ammoSpec.Damage
-	write-verbose ("CALCULATE-WEAPONDAMAGE: Base damage per shot/pwr for weapon '{0}' (ammo '{1}') is [{2}]" -f $wepName, $wepAmmo, $damageBase)
-	
-	-99
+	$weaponSpec  = @($cSpec | ? { $_.Name -eq $wepName })[0]
+	$wepAmmo     = nullCoalesce $wepAmmo, $wepName
+	$ammoSpec    = @($cSpec | ? { $_.Name -eq $wepAmmo })[0]
+	$damageBase  = $ammoSpec.Damage
+	$damageBonus = switch($result) {
+		"Hit"   {0; break;}
+		"Hit+1" {1; break;}
+		"Hit+2" {2; break;}
+	}
+	$damageFinal = ($ammoSpec.Damage * $wepPwr * $wepRoF) + $damageBonus
+	#Power allocation to 
+	write-verbose ("CALCULATE-WEAPONDAMAGE: Weapon '{0}' /ammo '{1}'; base damage [{2}]; attack power [{3}]; Shots [{4}]; Result '{5}'(+{6}) = {7}" `
+                	-f $wepName, $wepAmmo, $damageBase, $wepPwr, $wepRoF, $result, $damageBonus, $damageFinal)
+	$damageFinal
 }
 
 function Validate-Unit()
