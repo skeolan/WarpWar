@@ -10,10 +10,11 @@ param(
 if($PSBoundParameters['Debug']) { $debugPreference = $onDebugAction }
 
 
-$GameState  = $null
-$GameEngine = import-module $PSScriptRoot\WarpWarGameEngine.psm1 -Force
-$GameState  = init -cfg (get-content $gameData)
-$constants  = $GameState.Constants 
+$GameState     = $null
+$GameEngine    = import-module $PSScriptRoot\WarpWarGameEngine.psm1 -Force
+$DisplayEngine = import-module $PSScriptRoot\WarpWarDisplayEngine.psm1 -Force
+$GameState     = init -cfg (get-content $gameData)
+$constants     = $GameState.Constants 
 
 write-verbose "CONSTANTS"
 write-verbose ($constants | % { $_ } | out-string)

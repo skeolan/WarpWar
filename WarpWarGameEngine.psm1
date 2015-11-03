@@ -8,6 +8,8 @@ function init()
 	$GameData  = (New-Object System.Web.Script.Serialization.JavaScriptSerializer).Deserialize($cfg, [System.Collections.Hashtable])
 	$Constants = $GameData.Constants
 	
+	$CombatEngine  = import-module $PSScriptRoot\WarpWarCombatEngine.psm1  -Force
+	
 	Init-ShipsFromTemplate -template $GameData.ShipTemplate -componentSpec $GameData.ComponentSpecs -shipSpec $GameData.ShipSpecs
 	Init-ShipCollections   -template $GameData.ShipTemplate -componentSpec $GameData.ComponentSpecs -shipSpec $GameData.ShipSpecs -systems $GameData.Systems
 	Init-UnitMethods       -units    $GameData.ShipSpecs
@@ -353,59 +355,6 @@ function Validate-Orders()
 }
 
 
-function Calculate-CombatResult()
-{
- [CmdletBinding()]
- param(
-	  $aTac
-	, $dTac
-	, $aDrive
-	, $dDrive
-	, $CRT           #Combat Results Table lookup object, structured for lookups like AttackerTactic.DefenderTactic[DriveDiff]
-	, $maxDelta      #Maximum absolute value of drive difference - all out-of-bounds results are Miss or Escapes
-	, $aTL           #TL and ECM not yet implemented (for missiles)
-	, $dTL           #TL and ECM not yet implemented (for missiles)
-	, $dECM          #TL and ECM not yet implemented (for missiles)
-	)
-	
-	$driveDiff       = $aDrive - $dDrive
-	$driveDiffIndex  = [Math]::Min([Math]::Max(-$maxDelta, $driveDiff), $maxDelta) + $maxDelta
-	
-	write-verbose("[ENGINE:Calculate-CombatResult]          {0} vs {1} at Drive {2}-{3}=>{4} (read as {5}) = {6}" -f $aTac, $dTac, $aDrive, $dDrive, $driveDiff, $driveDiffIndex, $CRT.$aTac.$dTac[$driveDiffIndex])
-	
-	#return
-	$CRT.$aTac.$dTac[$driveDiffIndex]
-}
-
-#$aWeapon $aWeaponPower $aRoF $gameConfig.ComponentSpec $attackResult.crtResult $aAmmo 
-function Calculate-WeaponDamage()
-{
-[CmdletBinding()]
-	param(
-		    $wepName
-		  , $wepPwr
-		  , $wepRoF
-		  , $cSpec
-		  , $result
-		  , $wepAmmo
-	)
-	
-	$weaponSpec  = @($cSpec | ? { $_.Name -eq $wepName })[0]
-	$wepAmmo     = nullCoalesce $wepAmmo, $wepName
-	$ammoSpec    = @($cSpec | ? { $_.Name -eq $wepAmmo })[0]
-	$damageBase  = $ammoSpec.Damage
-	$damageBonus = switch($result) {
-		"Hit"   {0; break;}
-		"Hit+1" {1; break;}
-		"Hit+2" {2; break;}
-	}
-	$damageFinal = ($ammoSpec.Damage * $wepPwr * $wepRoF) + $damageBonus
-	#Power allocation to 
-	write-verbose ("CALCULATE-WEAPONDAMAGE: Weapon '{0}' /ammo '{1}'; base damage [{2}]; attack power [{3}]; Shots [{4}]; Result '{5}'(+{6}) = {7}" `
-                	-f $wepName, $wepAmmo, $damageBase, $wepPwr, $wepRoF, $result, $damageBonus, $damageFinal)
-	$damageFinal
-}
-
 function Validate-Unit()
 {
 	[cmdletBinding()]
@@ -582,54 +531,17 @@ function Summarize-CombatResult()
 	foreach($key in ($CombatResult.Keys | sort)) 
 	{ 
 		$resultHeader = "$key - $($CombatResult[$key].Count) attack(s)" 
+		
 		""
 		$resultHeader
 		"-" * $resultHeader.Length
 
-		$atkT = @()
-		$colSet = "attacker", "target", "weapon", "ammo", "attackType", "crtResult", "damage", "turnResult"
-
 		foreach($atk in $CombatResult[$key]) 
 		{ 
-			#("{0,-10} {4,-7} {1,-10} with {6, 3}/{7, -3} for {2,4} ( {3}, {4}, {5} )" `
-			#-f $atk.attacker, $atk.target, $atk.damage, $atk.attackType, $atk.crtResult, $atk.turnResult, $atk.weapon, $atk.ammo); 
-			$atkR = new-object PSCustomObject
-			foreach($col in $colSet)
-			{
-				$atkR | add-member -Type NoteProperty -Name $col -Value $atk.$col
-			}
-			$atkT += $atkR
+			("{0,-10} {4,-7} {1,-10} with {6, 3}/{7, -3} for {2,4} ( {3}, {4}, {5} )" `
+			-f $atk.attacker, $atk.target, $atk.damage, $atk.attackType, $atk.crtResult, $atk.turnResult, $atk.weapon, $atk.ammo); 
 		} 
-
-		$atkT | format-table $colSet | out-string
-	}
-}
-
-function summarize-ComponentData()
-{
-	[cmdletBinding()]
-	param( $compData )
-
-	$weps = $GameData.ComponentSpecs | ? { $_.CompType -eq "Weapon"     } # or $_.RoF -ne $null if you want to be fancy
-	$ammo = $GameData.ComponentSpecs | ? { $_.CompType -eq "Ammunition" }
-	$defs = $GameData.ComponentSpecs | ? { $_.CompType -eq "Defense"    }
-	$hull = $GameData.ComponentSpecs | ? { $_.CompType -eq "Hull"       }
-	$bays = $GameData.ComponentSpecs | ? { $_.CompType -eq "Carry"      }
-	$util = $GameData.ComponentSpecs | ? { $_.CompType -eq "Utility" -or $_.CompType -eq  "Power" }
-
-	foreach ($item in @($util + $weps + $ammo + $defs + $hull + $bays))
-	{
-		$itemH = new-object PSCustomObject
-		foreach ($key in $item.Keys)
-		{
-			if($key -eq "Info") { continue }
-			$itemH | add-member -type NoteProperty -name $key -value $item.$key
-		}
-		foreach ($key in $item.Info.Keys)
-		{
-			$itemH | add-member -type NoteProperty -name "Info:$key" -value $item.Info.$key
-		}
-		$itemH
+		"-" * $resultHeader.Length
 	}
 }
 
