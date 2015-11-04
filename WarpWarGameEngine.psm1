@@ -8,7 +8,8 @@ function init()
 	$GameData  = (New-Object System.Web.Script.Serialization.JavaScriptSerializer).Deserialize($cfg, [System.Collections.Hashtable])
 	$Constants = $GameData.Constants
 	
-	$CombatEngine  = import-module $PSScriptRoot\WarpWarCombatEngine.psm1  -Force
+	$CombatEngine     = import-module $PSScriptRoot\WarpWarCombatEngine.psm1      -Force
+	$ValidationEngine = import-module $PSScriptRoot\WarpWarValidationEngine.psm1  -Force
 	
 	Init-ShipsFromTemplate -template $GameData.ShipTemplate -componentSpec $GameData.ComponentSpecs -shipSpec $GameData.ShipSpecs
 	Init-ShipCollections   -template $GameData.ShipTemplate -componentSpec $GameData.ComponentSpecs -shipSpec $GameData.ShipSpecs -systems $GameData.Systems
@@ -53,121 +54,6 @@ function Resolve-CombatTurns ()
 	$combatResult
 }
 
-function execute-TurnOrder()
-{
-	[cmdletBinding()]
-	param (
-		  $attacker
-		  , $turn
-		  , $gameConfig
-	)
-	
-	
-	
-	#component data structures useful for adjudicating results
-	$cs   = $gameConfig.ComponentSpecs
-	$weps = $cs | ? { $_.CompType -eq "Weapon"     } # or $_.RoF -ne $null if you want to be fancy
-	$ammo = $cs | ? { $_.CompType -eq "Ammunition" }
-	$defs = $cs | ? { $_.CompType -eq "Defense"    }
-	$hull = $cs | ? { $_.CompType -eq "Hull"       }
-	$bays = $cs | ? { $_.CompType -eq "Carry"      }
-	$util = $cs | ? { $_.CompType -eq "Utility" -or $_.CompType -eq  "Power" }
-	
-	$attackResults = @()
-	
-	$ao       = $attacker.TurnOrders[$turn-1]
-	#if((Validate-Orders($a $ao)) -eq $false) { return $false }
-	
-	foreach ($attack in $ao.Attacks)
-	{
-		$attackResult = resolve-Attack $gameConfig $attacker $ao $attack
-		$attackResults += $attackResult
-	}
-	
-	
-	write-verbose ( "[ENGINE:Execute-TurnOrder] Result: {0} attacks resolved" -f $attackResults.Count )
-	$attackResults
-}
-
-function Resolve-Attack()
-{
-	[cmdletBinding()]
-	param (
-		$gameConfig
-		, $attacker
-		, $ao
-		, $attack
-	)
-	
-	
-	write-verbose ( "[ENGINE:Resolve-Attack]     Orders: {0} : {1} at Drive {2}" -f $a.Name, $ao.Tactic, $ao.PowerAllocation.PD)
-	$crt      = $gameConfig.CombatResults
-	$maxDelta = NullCoalesce($gameConfig.Constants.Combat_max_DriveDiff, 5)
-
-	$a        = $attacker
-	$aName    = $a.Name
-	$aTL      = [Math]::Min((NullCoalesce($a.TL, 1)), 1)
-	$ao       = $ao
-	$apo      = NullCoalesce($ao.PowerAllocation, $a.PowerAllocation)
-	$aTactic  = NullCoalesce($ao.Tactic, "??")
-	$aDrv     = NullCoalesce($attack.WeaponDrive, $apo.PD, 0)
-	$aECM     = NullCoalesce($apo.E, 0)
-
-	$d       = $gameConfig.ShipSpecs | where {$_.ID -eq $attack.Target}
-	$dName   = $d.Name
-	$dTL     = [Math]::Min((NullCoalesce($d.TL, 1)), 1)
-	$do      = $d.TurnOrders[$turn-1]
-	$dpo     = nullCoalesce($do.PowerAllocation, $d.PowerAllocation)
-	$dTactic = nullCoalesce ($do.Tactic, "??")
-	$dDrv    = nullCoalesce ($dpo.PD, -1)	
-	$dECM    = nullCoalesce ($dpo.E , 0)
-	
-	$aWeapon = nullCoalesce ($attack.Weapon, "??")
-	$aRoF    = nullCoalesce ($attack.RoF, 1)
-	$aAmmo   = nullCoalesce ($attack.WeaponAmmo, $aWeapon)
-	$aTactic = nullCoalesce ($ao.Tactic, "??")
-	$aWeaponPower  = nullCoalesce ($attack.Power, $apo.$aWeapon, 0)
-	
-	$attackResult = @{
-		"attacker"     = $attacker.ID;
-		"weapon"       = $aWeapon;
-		"ammo"         = $aAmmo;
-		"target"       = $d.ID;
-		"turnResult"   = "Continue";
-		"crtResult"    = "";
-		"damage"       = 0;
-		"attackType"   = "direct";
-	}
-	
-	if((nullCoalesce($attack.WeaponDrive, 0)) -ne 0) 
-	{
-		$attackResult.attackType = "indirect"
-	}
-	
-	write-verbose ("[ENGINE:Resolve-Attack]     - [{0}]({1}) with {2} shot(s) from {3} - {4} at speed {5} vs [{6}]({7}) {8} at speed {9} and ECM {10} -- TL {11} vs {12}" -f $a.Name, $a.ID, $aRoF, $aWeapon, $aTactic, $aDrv, $dName, $attack.Target, $dTactic, $dDrv, $dECM, $aTL, $dTL)
-	
-	$attackResult.crtResult = Calculate-CombatResult $aTactic $dTactic $aDrv $dDrv $crt $maxdelta $aTL $dTL $dECM
-	if($attackResult.crtResult -ne "Miss" -and $attackResult.crtResult -ne "Escapes")
-	{
-		$attackResult.Damage = Calculate-WeaponDamage $aWeapon $aWeaponPower $aRoF $gameConfig.ComponentSpecs $attackResult.crtResult $aAmmo 
-		if($attackResult.Damage -ne 0)
-		{
-			write-verbose ( "{0}Target hit for {1} damage!" -f "[ENGINE:Resolve-Attack]     ", $attackResult.Damage)
-		}
-	}
-	if($wepResult -eq "Miss")
-	{
-		write-verbose ("{0} {1} attack with {2} missed {3} !" -f "[ENGINE:Resolve-Attack]     ", $attacker.Name, $wepName, $defender.Name)
-	}
-	
-	if($wepResult -eq "Escapes")
-	{
-		write-verbose ("{0} {1} attack with {2} missed and permitted {3} to escape!" -f "[ENGINE:Resolve-Attack]     ", $attacker.Name, $wepName, $defender.Name)
-		$attackResult.turnResult="Escapes"
-	}
-	
-	$attackResult
-}
 
 function init-ShipsFromTemplate()
 {
@@ -183,8 +69,8 @@ function init-ShipsFromTemplate()
 	$cs = $componentSpec
 
 	#Convert template's Components and PowerAllocation dictionaries into KeyValuePair arrays for consistency
-	$shipT.Components      = $shipT.Components.GetEnumerator()      | ? { $_.Value -ne $null }
-	$shipT.PowerAllocation = $shipT.PowerAllocation.GetEnumerator() | ? { $_.Value -ne $null }
+	#$shipT.Components      = $shipT.Components.GetEnumerator()      | ? { $_.Value -ne $null }
+	#$shipT.PowerAllocation = $shipT.PowerAllocation.GetEnumerator() | ? { $_.Value -ne $null }
 
 
 	
@@ -218,7 +104,7 @@ function init-ShipCollections
 	foreach ($ship in $shipSpecs)
 	{
 		write-verbose " - Filter out zero-value components and power allocations"
-		$ship.Components      = $ship.Components.GetEnumerator()      | ? { $_.Value -ne 0 }
+		#$ship.Components      = $ship.Components.GetEnumerator()      | ? { $_.Value -ne 0 }
 		$ship.PowerAllocation = $ship.PowerAllocation.GetEnumerator() | ? { $_.Value -ne 0 }
 
 		
@@ -280,7 +166,7 @@ function generate-derivedAttrs()
 	$unit.PDPerMP  = ( (get-DerivedValueSet -depKey "PDPerMP" -attrSet $unit.Components -depSpec $componentSpec )  | measure-object -sum).sum	
 	$unit.Size     = ( (get-DerivedValueSet -depKey "Hull" -attrSet $unit.Components -depSpec $componentSpec )  | measure-object -sum).sum	
 	$unit.BPMax    = ( (get-DerivedValueSet -depKey "MaxSize" -attrSet $unit.Components -depSpec $componentSpec )  | measure-object -sum).sum
-	$unit.MP       = calculate-MovementPoints -drive (get-ComponentValue -unit $unit -componentKey "PD") -efficiency $unit.PDPerMP
+	$unit.MP       = calculate-MovementPoints -drive $unit.Components.PD -efficiency $unit.PDPerMP
 
 	#BPMax is simple for "vanilla" rules; Optional TL rule alters the BP-by-size calculation 
 	#  from the static max-size spec 
@@ -341,44 +227,6 @@ function generate-effectiveAttrs()
 	$result
 }
 
-function Validate-Orders()
-{
-	[CmdletBinding()]
-	param(
-		  $attacker
-		, $defender
-		, $attackerOrders
-		, $defenderOrders		
-	)
-
-	$true
-}
-
-
-function Validate-Unit()
-{
-	[cmdletBinding()]
-	param (
-		$unit
-	)
-	
-	$result = @()
-	
-	#SRUsed - SRAvail should be nonnegative
-	#HUsed  - HAvail  should be nonnegative
-	#BPMax  - BPCost  should be nonnegative
-	
-	#EffectiveAttrs should each be nonnegative
-	
-	#Units in your Racks should have Size no larger than you
-	#Units in your Racks should have you as their Location
-	#Units in your Racks should have no units in their Racks
-	
-	#Units in your Cargo should have no units in their Racks
-
-	$result
-}
-
 function remove-ExtraProperties()
 {
 	[cmdletBinding()]
@@ -417,7 +265,7 @@ function get-DerivedValueSet()
 	
 	$attrLookup = @{}
 
-	foreach ($item in $attrSet)
+	foreach ($item in $attrSet.GetEnumerator())
 	{
 		$iKey = $item.Key
 		$iVal = $item.Value
@@ -522,270 +370,6 @@ function replace-IDsWithReferences()
 	}
 	
 	$newCollection
-}
-
-function Summarize-CombatResult()
-{
-	[CmdletBinding()]
-	param( $CombatResult )
-	foreach($key in ($CombatResult.Keys | sort)) 
-	{ 
-		$resultHeader = "$key - $($CombatResult[$key].Count) attack(s)" 
-		
-		""
-		$resultHeader
-		"-" * $resultHeader.Length
-
-		foreach($atk in $CombatResult[$key]) 
-		{ 
-			("{0,-10} {4,-7} {1,-10} with {6, 3}/{7, -3} for {2,4} ( {3}, {4}, {5} )" `
-			-f $atk.attacker, $atk.target, $atk.damage, $atk.attackType, $atk.crtResult, $atk.turnResult, $atk.weapon, $atk.ammo); 
-		} 
-		"-" * $resultHeader.Length
-	}
-}
-
-function printShipInfo
-{
-    [cmdletBinding()]
-	param(
-		  $s
-		, [switch] $includeZeroes
-		, [Decimal] $infoEntryLeftSegmentLen  =20
-		, [Decimal] $lineEntryLeftSegmentLen  =19
-		, [Decimal] $lineEntryRightSegmentLen =25
-		, [Decimal] $lineEntryFullLen         =45
-	) 
-	
-	if($includeZeroes -eq $true)
-	{
-		WRITE-DEBUG ("{0}{1} -- including zeroes!" -f $s.Name, $s.ID )
-	}
-	else
-	{
-		WRITE-DEBUG ("{0}{1} -- EXcluding zeroes" -f $s.Name, $s.ID )
-	}
-	
-	
-	#Header
-	("| {0,-$infoEntryLeftSegmentLen}| {1, -$lineEntryFullLen} |" -f $s.ID, $s.Name )
-	"|-{0,-$infoEntryLeftSegmentLen}--{1, -$lineEntryFullLen}-|" -f (("-"*$infoEntryLeftSegmentLen), ("-"*$lineEntryFullLen))
-	#Excluded info fields -- fields which either need additional special handling, or aren't to be displayed
-	$exclInfoFields = ("ID", "Name", "Cargo", "Components", "Damage", "DerivedAttrs", "EffectiveAttrs", "HAvail", "HUsed", "MP", "PDPerMP", "SRAvail", "SRUsed", "Location", "TurnOrders", "PowerAllocation", "PowerUsed", "Racks", "Valid", "ValidationResult")
-	#Ordered info fields
-	$orderedInfoFields = ("Owner", "Universe", "TL", "BPCost", "BPMax", "Size", "MP") 
-	foreach ($infoKey in $orderedInfoFields)
-	{ 
-		"| {0,-$infoEntryLeftSegmentLen}| {1, -$lineEntryFullLen} |" -f ($infoKey, (nullCoalesce $s.$infoKey, 0))
-	}
-	
-	#Unordered info fields - just display alphabetically
-    $s.GetEnumerator() | sort key | foreach { 
-		if(-not $orderedInfoFields.Contains($_.Key) -and -not $exclInfoFields.Contains($_.Key) -and ( $includeZeroes -eq $true -or $_.Value -ne 0) ) 
-		{ 
-			"| {0,-$infoEntryLeftSegmentLen}| {1, -$lineEntryFullLen} |" -f $_.Key, $_.Value 
-		} 
-	}
-	
-	#Complex info fields
-		write-debug "Location"
-		print-LocationDetail  -title "Location"   -location $s.Location
-
-		"| {0,-$infoEntryLeftSegmentLen}| {1, -$lineEntryFullLen}-|" -f ((" "*$infoEntryLeftSegmentLen), ("-"*$lineEntryFullLen))
-
-		write-debug "Components"
-		print-ComponentDetail -title "Components" -collection $s.Components -effectiveCollection $s.EffectiveAttrs -damageCollection $s.Damage -powerCollection $s.PowerAllocation -includeZeroes $includeZeroes 
-		write-debug "Cargo"
-		print-ListDetail      -title "Cargo"      -collection $s.Cargo -count $s.HUsed  -capacity $s.HAvail
-		write-debug "Racks"		
-		print-ListDetail      -title "Racks"      -collection $s.Racks -count $s.SRUsed -capacity $s.SRAvail
-		write-debug "EffectiveAttrs (incl damage annotations)"
-		write-debug "ValidationResult (incl 'Valid' ruling)"
-		
-	#Footer
-	"|-{0,-$infoEntryLeftSegmentLen}--{1, -$lineEntryFullLen}-|" -f (("-"*$infoEntryLeftSegmentLen), ("-"*$lineEntryFullLen))
-}
-
-function print-ComponentDetail()
-{
-	[CmdletBinding()]
-	param(
-		  $collection
-		, $damageCollection         = $null
-		, $effectiveCollection      = $null
-		, $powerCollection          = $null
-		, $title                    = "Components"
-		, $includeZeroes            = $false
-		, $infoEntryLeftSegmentLen  = 20
-		, $lineEntryLeftSegmentLen  = 19
-		, $lineEntryRightSegmentLen = 25
-		, $lineEntryFullLen         = 45
-	)
-	
-	$compInfoHeader="Max | Dmg | Eff | Pwr "		
-
-	if($collection.Count -gt 0 -or $includeZeroes)
-	{
-		"| {0,-$infoEntryLeftSegmentLen}| {1, -$lineEntryLeftSegmentLen } {2, -$lineEntryRightSegmentLen} |" -f "$title", "Name (#)", $compInfoHeader
-		"| {0,-$infoEntryLeftSegmentLen}| {1, -$lineEntryFullLen}-|" -f ((" "*$infoEntryLeftSegmentLen), ("-"*$lineEntryFullLen))
-
-	}
-	
-	foreach ($entry in $collection)
-	{
-		write-debug $entry
-		if($entry.Value -eq 0 -and -not $includeZeroes)
-		{
-			write-debug "$($entry.Key) is zero, skipping)"
-			continue
-		}
-		
-		if($entry.Value -ne $null)
-		{
-			$eKey         = $entry.Key
-			$eVal         = $entry.Value
-			$eDmgTxt      = (nullCoalesce $damageCollection.$eKey   , 0)
-			$eEffTxt      = (nullCoalesce $effectiveCollection.$eKey, ($eVal - $eDmgTxt))
-			$eSpecTxt     = $eEffTxt + $eDmgTxt
-			$ePwrTxt      = (nullCoalesce ($powerCollection | ? { $_.Key -eq "$eKey" }).Value, 0)
-			$eRightBuffer = $lineEntryRightSegmentLen - $compInfoHeader.Length
-			
-			if($eVal -ne 1)
-			{
-				$eKeyTxt = "{0,-4} ({1})" -f $eKey, $eVal
-			}
-			else
-			{
-				$eKeyTxt = $eKey
-			}
-			
-			"| {0,-$infoEntryLeftSegmentLen}| {1, -$lineEntryLeftSegmentLen} {2, 3} | {3, 3} | {4,3} | {5,3} {6,$eRightBuffer} |" -f "", $eKeyTxt, $eSpecTxt, $eDmgTxt, $eEffTxt, $ePwrTxt, ""
-		}
-	}
-	
-}
-
-function print-LocationDetail()
-{
-	[CmdletBinding()]
-	param(
-		  $location
-		, $title
-		, $infoEntryLeftSegmentLen  = 20
-		, $lineEntryLeftSegmentLen  = 19
-		, $lineEntryRightSegmentLen = 25
-		, $lineEntryFullLen         = 45
-	)
-
-	if($location -ne $null -or $includeZeroes)
-	{
-		$lineItemTitle = ""
-		$lineItemInfo  = ""
-		
-		#Valid Possibilities: a) unit has a bare X,Y coordinate or System as its Location
-		#                     b) unit is in Racks or Cargo - its parent is of type (a)
-		#                     c) unit is in Cargo - its parent is in Racks, and ITS parent is of Type (a)
-		#                     d) ???
-		$xCoord = (nullCoalesce($location.X, $location.Location.X, $location.Location.Location.X, "?"))
-		$yCoord = (nullCoalesce($location.Y, $location.Location.Y, $location.Location.Location.Y, "?"))
-
-		$lineItemTitle = "{0}" -f (nullCoalesce $location.Name, "")
-		$lineItemInfo = ((("<{0},{1}>" -f $xCoord, $yCoord) -join " ").Trim())
-		"| {0,-$infoEntryLeftSegmentLen}| {1, -$lineEntryLeftSegmentLen} {2, -$lineEntryRightSegmentLen} |" -f "$title", $lineItemTitle, $lineItemInfo
-	}
-}
-
-function print-ListDetail()
-{
-	[CmdletBinding()]
-	param(
-		  $collection
-		, $title
-		, $count
-		, $capacity
-		, $includeZeroes
-		, $infoEntryLeftSegmentLen  = 20
-		, $lineEntryLeftSegmentLen  = 19
-		, $lineEntryRightSegmentLen = 25
-		, $lineEntryFullLen         = 45
-	)
-	
-	write-debug "detailing $($collection.Count) list items..."
-	
-	if($collection.Count -gt 0 -or $includeZeroes)
-	{
-		$qtyHeader=""
-		if($count -ne $null)
-		{
-			$qtyHeader = "($count"
-			if($capacity -ne $null)
-			{
-				$qtyHeader += "/$capacity"
-			}
-			$qtyHeader += ")"
-		}
-		
-		"| {0,-$infoEntryLeftSegmentLen}| {1, -$lineEntryLeftSegmentLen}-{2, $lineEntryRightSegmentLen} |" -f "$title $qtyHeader", ("-"*$lineEntryLeftSegmentLen), ("-"*$lineEntryRightSegmentLen)
-		foreach ($entry in $collection)
-		{
-			write-debug $entry
-			if($entry.Value -eq 0 -and -not $includeZeroes)
-			{
-				write-debug "$($entry.Key) is zero, skipping)"
-				continue
-			}
-			
-			$lineItemTitle = ""
-			$lineItemInfo  = ""
-			
-			if ($entry.GetType() -eq "string".GetType()) #simple string entry
-			{
-				$lineItemTitle = $entry
-			}
-			if ($entry.Name -ne $null) #Named-object reference entry
-			{
-				$lineItemTitle = "{0}" -f $entry.Name
-				if($entry.Qty -ne $null -and $entry.Qty -gt 1)
-				{
-					$lineItemTitle = "{0}x {1}" -f $entry.Qty, $lineItemTitle
-				}
-				
-				if($entry.Size -ne $null -or $entry.Qty -ne $null)
-				{
-					$lineItemInfo += "{0, $lineEntryRightSegmentLen}" -f ("("+((nullCoalesce $entry.Size, 1) * (nullCoalesce $entry.Qty, 1))+")")
-				}
-				else
-				{
-					$lineItemInfo += " {0, $lineEntryRightSegmentLen}" -f ""
-				}
-			}
-			
-			#last-ditch, probably won't be pretty
-			if ($lineItemTitle -eq "")
-			{
-				$lineItemTitle="{0}" -f "", $entry
-			}
-			
-			"| {0,-$infoEntryLeftSegmentLen}| {1, -$lineEntryLeftSegmentLen} {2, $lineEntryRightSegmentLen} |" -f "", $lineItemTitle, $lineItemInfo
-		}
-	}
-}
-
-function get-ComponentValue()
-{
-	[cmdletBinding()]
-	param(
-		  $unit
-		, $componentKey
-	)
-
-	$cEntry = $unit.Components | where-object {
-		$_.Key -eq $componentKey
-	}
-	
-	write-debug ("GET_ComponentValue: {0} for {1} is {2}" -f $componentKey, $unit.Name, $cEntry.Value)
-	
-	(nullCoalesce $cEntry.Value, 0)
 }
 
 function nullCoalesce()
