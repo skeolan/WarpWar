@@ -2,9 +2,9 @@
 	"Constants":{
 	      "Combat_max_rounds"    : 3	
 		, "Combat_max_DriveDiff" : 5
-		, "Hull_damage_value"    : 1  
-		, "TL_addTo_BPLimit"     : 1  
-		, "TL_addTo_Damage"      : 0 
+		, "Hull_damage_value"    : 0  
+		, "TL_addTo_BPLimit"     : 0  
+		, "TL_addTo_Damage"      : 1 
         , "#Comment_Hull_damage_value" : "0 for 'vanilla' rules; 1+ makes larger ships tougher than smaller ships with equal armor/shields/ecm."
         , "#Comment_TL_addTo_BPLimit"  : "0 for 'vanilla' rules; 1+ alters the BP-by-size calculation from the static max-size spec to (sqrt(MaxSize) * (sqrt(maxSize) + TL -1))"
         , "#Comment_TL_addTo_Damage"   : "1 (True) for 'vanilla' rules; 0 (False) for no bonus damage from TL."
@@ -75,7 +75,7 @@
 		, "PowerAllocation"        : {
 			"PD":0, "B":0, "S":0, "T":0, "M":0, "SR":0, "C":0, "SH":0, "A":0, "E":0, "H":0, "R":0, "CP":0, "SWG":0, "MWG":0, "LWG":0, "GWG":0, "SSB":0, "MSB":0, "LSB":0, "SSS":0, "MSS":0, "LSS":0, "GSS":0
 		}
-		, "Universe"               : "Reign of Stars"
+		, "Universe"               : "Vanilla WarpWar"
 		, "Valid"                  : "???"
 		, "Racks"                  : []
 		, "Cargo"                  : []
@@ -165,7 +165,7 @@
 		    , "Name"             : "Portero-1"
 		    , "Owner"            : "Empire"
 		    , "Components"       : { "SSS":1, "PD":4, "S":1, "H":2 }
-		    , "Cargo"            : [{ "Name":"BP", "Size":1, "Qty":5 }, { "Name":"Fifth Space Marines", "Size":5, "Qty":1 }, "ISB-0A-00A"]
+		    , "Cargo"            : [{ "Name":"BP", "Size":1, "Qty":5 }, { "Name":"BP", "Qty":5 }, "ISB-0A-00A"]
 		    , "Location"         : "IWS-01-001"
 		  }
 		, {
@@ -180,7 +180,7 @@
 	, "Systems": [
 		{
 			  "ID"             : "SYS001"
-			, "Name"           : "Beta Hydri"
+			, "Name"           : "Capitol System"
 			, "X"              : "5"
 			, "Y"              : "5"
 		}

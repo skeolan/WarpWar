@@ -120,7 +120,7 @@ function Resolve-Attack()
 	$attackResult.crtResult = Calculate-CombatResult $aTactic $dTactic $aDrv $dDrv $crt $maxdelta $aTL $dTL $dECM
 	if($attackResult.crtResult -ne "Miss" -and $attackResult.crtResult -ne "Escapes")
 	{
-		$attackResult.Damage = Calculate-WeaponDamage $aWeapon $aWeaponPower $aRoF $gameConfig.ComponentSpecs $attackResult.crtResult $aAmmo 
+		$attackResult.Damage = Calculate-WeaponDamage $aWeapon $aWeaponPower $aRoF $gameConfig.ComponentSpecs $attackResult.crtResult $aAmmo $aTL ($gameConfig.Constants.TL_addTo_Damage -gt 0)
 		if($attackResult.Damage -ne 0)
 		{
 			write-verbose ( "{0}Target hit for {1} damage!" -f "[ENGINE:Resolve-Attack]     ", $attackResult.Damage)
@@ -152,20 +152,29 @@ function Calculate-WeaponDamage()
 		  , $cSpec
 		  , $result
 		  , $wepAmmo
+		  , $wepTL = 0
+		  , $adjustDmgForTL = 1
 	)
 	
-	$weaponSpec  = @($cSpec | ? { $_.Name -eq $wepName })[0]
-	$wepAmmo     = nullCoalesce $wepAmmo, $wepName
-	$ammoSpec    = @($cSpec | ? { $_.Name -eq $wepAmmo })[0]
-	$damageBase  = $ammoSpec.Damage
-	$damageBonus = switch($result) {
+	$weaponSpec     = @($cSpec | ? { $_.Name -eq $wepName })[0]
+	$wepAmmo        = nullCoalesce $wepAmmo, $wepName
+	$ammoSpec       = @($cSpec | ? { $_.Name -eq $wepAmmo })[0]
+	$damageBase     = $ammoSpec.Damage
+	$TLBonus        = switch($adjustDmgForTL) {
+		$true   { $wepTL; break; }
+		$false  { 0     ; break; }
+	}
+	$hitBonus = switch($result) {
 		"Hit"   {0; break;}
 		"Hit+1" {1; break;}
 		"Hit+2" {2; break;}
 	}
-	$damageFinal = ($ammoSpec.Damage * $wepPwr * $wepRoF) + $damageBonus
+	$damageFinal = ($ammoSpec.Damage * $wepPwr * $wepRoF) + $TLBonus + $hitBonus
 	#Power allocation to 
-	write-verbose ("CALCULATE-WEAPONDAMAGE: Weapon '{0}' /ammo '{1}'; base damage [{2}]; attack power [{3}]; Shots [{4}]; Result '{5}'(+{6}) = {7}" `
-                	-f $wepName, $wepAmmo, $damageBase, $wepPwr, $wepRoF, $result, $damageBonus, $damageFinal)
+	$damageCalcHeader = "|Weapon | Ammo :(Base x Power x Shots) + TL? + Result      = Total |"
+	$damageCalcHeader += "`n     " + ("-" * $damageCalcHeader.Length)
+	$damageCalcVals   = "|{0,-6} | {1,-4} :({2,4} x {3,5} x {4,5}) + {5,3} + {6,2} ({7,-5})  = {8,5}" `
+	                    -f $wepName, $wepAmmo, $damageBase, $wepPwr, $wepRoF, $TLBonus, $hitBonus, $result, $damageFinal
+	write-verbose "CALCULATE-WEAPONDAMAGE: `n     $damageCalcHeader`n     $damageCalcVals"
 	$damageFinal
 }

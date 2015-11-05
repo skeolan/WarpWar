@@ -4,7 +4,8 @@
 
 [cmdletBinding()]
 param(
-	$gameData = "$PSScriptRoot\GameConfig-ReignOfStars.json"
+	#$gameData = "$PSScriptRoot\GameConfig-ReignOfStars.json"
+	$gameData = "$PSScriptRoot\GameConfig-VanillaWW.json"
 )
 
 if($PSBoundParameters['Debug']) { $debugPreference = $onDebugAction }

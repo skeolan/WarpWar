@@ -5,7 +5,7 @@ function init()
 		$cfg
 	)
 	Add-Type -AssemblyName System.Web.Extensions
-	$GameData  = (New-Object System.Web.Script.Serialization.JavaScriptSerializer).Deserialize($cfg, [System.Collections.Hashtable])
+	$GameEngine  = (New-Object System.Web.Script.Serialization.JavaScriptSerializer).Deserialize($cfg, [System.Collections.Hashtable])
 	$Constants = $GameData.Constants
 	
 	$CombatEngine     = import-module $PSScriptRoot\WarpWarCombatEngine.psm1      -Force
@@ -15,7 +15,7 @@ function init()
 	Init-ShipCollections   -template $GameData.ShipTemplate -componentSpec $GameData.ComponentSpecs -shipSpec $GameData.ShipSpecs -systems $GameData.Systems
 	Init-UnitMethods       -units    $GameData.ShipSpecs
 	
-	$GameData	
+	$GameEngine	
 }
 
 function Resolve-CombatTurns ()
@@ -44,7 +44,6 @@ function Resolve-CombatTurns ()
 							$resultSet += $attackResults
 						}
 			else           { write-verbose "Turn did not execute successfully?" }
-			write-verbose "Turn completed, proceeding..."
 		} 
 		#TODO: Apply $resultSet to gamestate
 		#TODO: Remove any escaped or destroyed ships from $combatShips
