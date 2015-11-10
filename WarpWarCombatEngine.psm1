@@ -1,28 +1,5 @@
 #WarpWarCombatEngine
 
-function Calculate-CombatResult()
-{
- [CmdletBinding()]
- param(
-	  $aTac
-	, $dTac
-	, $aDrive
-	, $dDrive
-	, $CRT           #Combat Results Table lookup object, structured for lookups like AttackerTactic.DefenderTactic[DriveDiff]
-	, $maxDelta      #Maximum absolute value of drive difference - all out-of-bounds results are Miss or Escapes
-	, $aTL           #TL and ECM not yet implemented (for missiles)
-	, $dTL           #TL and ECM not yet implemented (for missiles)
-	, $dECM          #TL and ECM not yet implemented (for missiles)
-	)
-	
-	$driveDiff       = $aDrive - $dDrive
-	$driveDiffIndex  = [Math]::Min([Math]::Max(-$maxDelta, $driveDiff), $maxDelta) + $maxDelta
-	
-	write-verbose("[ENGINE:Calculate-CombatResult]          {0} vs {1} at Drive {2}-{3}=>{4} (read as {5}) = {6}" -f $aTac, $dTac, $aDrive, $dDrive, $driveDiff, $driveDiffIndex, $CRT.$aTac.$dTac[$driveDiffIndex])
-	
-	#return
-	$CRT.$aTac.$dTac[$driveDiffIndex]
-}
 
 function execute-TurnOrder()
 {
@@ -51,7 +28,13 @@ function execute-TurnOrder()
 	
 	foreach ($attack in $ao.Attacks)
 	{
-		$attackResult = resolve-Attack $gameConfig $attacker $ao $attack
+		$defender       = $gameConfig.ShipSpecs | where {$_.ID -eq $attack.Target}
+		$do             = $defender.TurnOrders[$turn-1]
+		$attackResult   = resolve-Attack $gameConfig $attacker $ao $attack $defender $do
+
+		#ugh, side effects
+		$do.EcmUsed    += $attackResult.ecmUsed
+
 		$attackResults += $attackResult
 	}
 	
@@ -60,14 +43,17 @@ function execute-TurnOrder()
 	$attackResults
 }
 
+
 function Resolve-Attack()
 {
 	[cmdletBinding()]
 	param (
 		$gameConfig
 		, $attacker
-		, $ao
+		, $attackerOrders
 		, $attack
+		, $defender
+		, $defenderOrders
 	)
 	
 	
@@ -77,26 +63,28 @@ function Resolve-Attack()
 
 	$a        = $attacker
 	$aName    = $a.Name
-	$aTL      = [Math]::Min((NullCoalesce($a.TL, 1)), 1)
-	$ao       = $ao
+	$aTL      = [Math]::Min((NullCoalesce($ao.TL, $a.TL, 1)), 1)
+	$ao       = $attackerOrders
 	$apo      = NullCoalesce($ao.PowerAllocation, $a.PowerAllocation)
 	$aTactic  = NullCoalesce($ao.Tactic, "??")
 	$aDrv     = NullCoalesce($attack.WeaponDrive, $apo.PD, 0)
 	$aECM     = NullCoalesce($apo.E, 0)
 
-	$d       = $gameConfig.ShipSpecs | where {$_.ID -eq $attack.Target}
-	$dName   = $d.Name
-	$dTL     = [Math]::Min((NullCoalesce($d.TL, 1)), 1)
-	$do      = $d.TurnOrders[$turn-1]
-	$dpo     = nullCoalesce($do.PowerAllocation, $d.PowerAllocation)
-	$dTactic = nullCoalesce ($do.Tactic, "??")
-	$dDrv    = nullCoalesce ($dpo.PD, -1)	
-	$dECM    = nullCoalesce ($dpo.E , 0)
-	
-	$aWeapon = nullCoalesce ($attack.Weapon, "??")
-	$aRoF    = nullCoalesce ($attack.RoF, 1)
-	$aAmmo   = nullCoalesce ($attack.WeaponAmmo, $aWeapon)
-	$aTactic = nullCoalesce ($ao.Tactic, "??")
+	$d             = $defender
+	$dName         = $d.Name
+	$dTL           = [Math]::Min((NullCoalesce($d.TL, 1)), 1)
+	$do            = $defenderOrders
+	$dpo           = nullCoalesce($do.PowerAllocation, $d.PowerAllocation)
+	$dTactic       = nullCoalesce ($do.Tactic, "??")
+	$dDrv          = nullCoalesce ($dpo.PD, -1)	
+	$dECMUsed      = nullCoalesce ($do.EcmUsed, 0)
+	$dECM          = nullCoalesce ($dpo.E , 0)
+	$dECMAvailable = [MATH]::MAX($dECM - $dECMUsed, 0)
+	          
+	$aWeapon  = nullCoalesce ($attack.Weapon, "??")
+	$aRoF     = nullCoalesce ($attack.RoF, 1)
+	$aAmmo    = nullCoalesce ($attack.WeaponAmmo, $aWeapon)
+	$aTactic  = nullCoalesce ($ao.Tactic, "??")
 	$aWeaponPower  = nullCoalesce ($attack.Power, $apo.$aWeapon, 0)
 	
 	$attackResult = @{
@@ -108,29 +96,34 @@ function Resolve-Attack()
 		"crtResult"    = "";
 		"damage"       = 0;
 		"attackType"   = "direct";
-	}
+		"ecmUsed"      = $dECMUsed;
+		"ecmRemaining" = $dECMAvailable;
+ 	}
 	
-	if((nullCoalesce($attack.WeaponDrive, 0)) -ne 0) 
+	
+	write-verbose ("[ENGINE:Resolve-Attack]     - [{0}]({1}) with {2} shot(s) from {3} - {4} at speed {5} vs [{6}]({7}) {8} at speed {9} and ECM {10}/{11} -- TL {12} vs {13}" -f $a.Name, $a.ID, $aRoF, $aWeapon, $aTactic, $aDrv, $dName, $attack.Target, $dTactic, $dDrv, $dECMUsed, $dECMAvailable, $aTL, $dTL)
+	if((nullCoalesce($attack.WeaponDrive, -1)) -ne -1) 
 	{
-		$attackResult.attackType = "indirect"
+		$attackResult.attackType = "indirect" 
 	}
 	
-	write-verbose ("[ENGINE:Resolve-Attack]     - [{0}]({1}) with {2} shot(s) from {3} - {4} at speed {5} vs [{6}]({7}) {8} at speed {9} and ECM {10} -- TL {11} vs {12}" -f $a.Name, $a.ID, $aRoF, $aWeapon, $aTactic, $aDrv, $dName, $attack.Target, $dTactic, $dDrv, $dECM, $aTL, $dTL)
-	
-	$attackResult.crtResult = Calculate-CombatResult $aTactic $dTactic $aDrv $dDrv $crt $maxdelta $aTL $dTL $dECM
+	$attackResult = Calculate-AttackResult $aTactic $dTactic $aDrv $dDrv $crt $attackResult $maxdelta $aTL $dTL $dECMAvailable $attackResult.AttackType
+	#If weapon attack features its own drive rating, then it's a guided/indirect weapon and the ECM rules apply.
 	if($attackResult.crtResult -ne "Miss" -and $attackResult.crtResult -ne "Escapes")
 	{
 		$attackResult.Damage = Calculate-WeaponDamage $aWeapon $aWeaponPower $aRoF $gameConfig.ComponentSpecs $attackResult.crtResult $aAmmo $aTL ($gameConfig.Constants.TL_addTo_Damage -gt 0)
-		if($attackResult.Damage -ne 0)
-		{
-			write-verbose ( "{0}Target hit for {1} damage!" -f "[ENGINE:Resolve-Attack]     ", $attackResult.Damage)
-		}
+		
+	}
+		
+	
+	if($attackResult.Damage -ne 0)
+	{
+		write-verbose ( "{0}Target hit for {1} damage!" -f "[ENGINE:Resolve-Attack]     ", $attackResult.Damage)
 	}
 	if($wepResult -eq "Miss")
 	{
 		write-verbose ("{0} {1} attack with {2} missed {3} !" -f "[ENGINE:Resolve-Attack]     ", $attacker.Name, $wepName, $defender.Name)
 	}
-	
 	if($wepResult -eq "Escapes")
 	{
 		write-verbose ("{0} {1} attack with {2} missed and permitted {3} to escape!" -f "[ENGINE:Resolve-Attack]     ", $attacker.Name, $wepName, $defender.Name)
@@ -140,6 +133,81 @@ function Resolve-Attack()
 	$attackResult
 }
 
+function Calculate-AttackResult()
+{
+ [CmdletBinding()]
+ param(
+	  $aTac
+	, $dTac
+	, $aDrive
+	, $dDrive
+	, $CRT                  #Combat Results Table lookup object, structured for lookups like AttackerTactic.DefenderTactic[DriveDiff]
+	, $resultObject         #Structured attack-result object for returning resolution info
+	
+	, $maxDelta=5           #Maximum absolute value of drive difference - all out-of-bounds results are Miss or Escapes
+	, $aTL=1                # for missile / ECM resolution
+	, $dTL=1                # for missile / ECM resolution
+	, $dECM=0               # for missile / ECM resolution
+	, $attackType="direct"  # for missile / ECM resolution
+	)
+	
+	$driveDiff       = $aDrive - $dDrive
+	$driveDiffIndex  = Get-DriveDiffIndex $driveDiff $maxDelta
+	
+	$midResult = $CRT.$aTac.$dTac[$driveDiffIndex]
+	$crtResult = $midResult
+	$ecmUsed   = 0
+	
+	#ECM in play must be at least 1 for ECM to be a factor, AND damage must be possible, AND weapon must be indirect-fire
+	if($attackType -ne "indirect" -or $crtResult -notlike "Hit*" -or $dECM -lt 1)
+	{
+		write-verbose ("  [{0,-20}] : ECM resolution for (ECM [$dECM], $crtResult, $attackType) does NOT apply, skipping ECM result evaluation" -f $MyInvocation.MyCommand)
+	}
+	while($attackType -eq "indirect" -and $crtResult -like "Hit*" -and ++$ecmToUse -le $dECM)
+	{
+		write-verbose ("  [{0,-20}] : evaluate using ECM {1}" -f $MyInvocation.MyCommand, $ecmToUse)
+		$driveDiffAdj = [Math]::Max(0, ($dTL - $aTL + $ecmToUse))
+		if($driveDiffAdj -gt 0) 
+		{
+			$lowIndex         = Get-DriveDiffIndex ($driveDiff - $driveDiffAdj) $maxDelta
+			$highIndex        = Get-DriveDiffIndex ($driveDiff + $driveDiffAdj) $maxDelta
+			$lowResult        = $CRT.$aTac.$dTac[$lowIndex]
+			$highResult       = $CRT.$aTac.$dTac[$highIndex]
+			
+			$lowDamageBonus  = Get-HitDamageBonus $lowResult 
+			$midDamageBonus  = Get-HitDamageBonus $crtResult 
+			$highDamageBonus = Get-HitDamageBonus $highResult
+
+			write-verbose ("  [{0,-20}] : using ECM {1} changes result [$driveDiffIndex]$midResult($midDamageBonus) to [$lowIndex]{2}($lowDamageBonus) or [$highIndex]{3}($highDamageBonus)" -f $MyInvocation.MyCommand, $ecmToUse, $lowResult, $highResult)
+			
+			if( $lowDamageBonus -lt $midDamageBonus)
+			{
+				$ecmUsed = $ecmToUse
+				$crtResult = $lowResult
+				write-verbose ("  [{0,-20}] : ECM SUCCESS - Adjust result to $crtResult and record ECM usage $ecmUsed" -f $MyInvocation.MyCommand)
+			}
+			if( $highDamageBonus -lt $midDamageBonus)
+			{
+				$ecmUsed = $ecmToUse
+				$crtResult = $highResult
+				write-verbose ("  [{0,-20}] : ECM SUCCESS - Adjust result to $crtResult and record ECM usage $ecmUsed" -f $MyInvocation.MyCommand)
+			}
+		}
+		else
+		{
+			write-verbose ("  [{0,-20}] : No effect on hit result, index adjustment dTL{1} - aTL{2} + ecm{3} = {4}" -f $MyInvocation.MyCommand, $dTL, $aTL, $ecmToUse, $driveDiffAdj)
+		}
+	}
+	
+	write-verbose("[ENGINE:Calculate-CombatResult]          {0} vs {1} at Drive {2}-{3}=>{4} (read as {5}) ecm {6} = {7}" -f $aTac, $dTac, $aDrive, $dDrive, $driveDiff, $driveDiffIndex, $ecmUsed, $crtResult)
+	
+	$resultObject.crtResult     = $crtResult
+	$resultObject.ecmUsed       = $ecmUsed
+	$resultObject.ecmRemaining -= $ecmUsed
+	
+	#return
+	$resultObject
+}
 
 #$aWeapon $aWeaponPower $aRoF $gameConfig.ComponentSpec $attackResult.crtResult $aAmmo 
 function Calculate-WeaponDamage()
@@ -164,11 +232,7 @@ function Calculate-WeaponDamage()
 		$true   { $wepTL; break; }
 		$false  { 0     ; break; }
 	}
-	$hitBonus = switch($result) {
-		"Hit"   {0; break;}
-		"Hit+1" {1; break;}
-		"Hit+2" {2; break;}
-	}
+	$hitBonus = Get-HitDamageBonus($result)
 	$damageFinal = ($ammoSpec.Damage * $wepPwr * $wepRoF) + $TLBonus + $hitBonus
 	#Power allocation to 
 	$damageCalcHeader = "|Weapon | Ammo :(Base x Power x Shots) + TL? + Result      = Total |"
@@ -177,4 +241,33 @@ function Calculate-WeaponDamage()
 	                    -f $wepName, $wepAmmo, $damageBase, $wepPwr, $wepRoF, $TLBonus, $hitBonus, $result, $damageFinal
 	write-verbose "CALCULATE-WEAPONDAMAGE: `n     $damageCalcHeader`n     $damageCalcVals"
 	$damageFinal
+}
+
+function Get-HitDamageBonus()
+{
+	[CmdletBinding()]
+	param(
+		$hitResult
+	)
+	
+	$bonus = switch -w ($hitResult) {
+			"Escapes" { -99; break; }
+			"Miss"    { -99; break; }
+			"Hit*"    { 0+(($hitResult -split "\+")[1]); break; }
+			Default   { $null; break; }
+		}
+	
+	$bonus
+}
+
+function Get-DriveDiffIndex()
+{
+	[CmdletBinding()]
+	param (
+		$driveDiff
+		, $maxDelta = 5
+	)
+	
+	#return
+	[Math]::Min([Math]::Max(-$maxDelta, $driveDiff), $maxDelta) + $maxDelta
 }

@@ -42,8 +42,8 @@ function Summarize-CombatResult()
 
 		foreach($atk in $CombatResult[$key]) 
 		{ 
-			("{0,-10} {4,-7} {1,-10} with {6, 3}/{7, -3} for {2,4} ( {3}, {4}, {5} )" `
-			-f $atk.attacker, $atk.target, $atk.damage, $atk.attackType, $atk.crtResult, $atk.turnResult, $atk.weapon, $atk.ammo); 
+			("{0,-10} {1,-7} {2,-10} with {3, 3}/{4, -3} for {5,4} ( {6}, {7}, {8} ) ECM {9} used, {10} remaining" `
+			-f $atk.attacker, $atk.crtResult, $atk.target, $atk.weapon, $atk.ammo, $atk.damage, $atk.attackType, $atk.crtResult, $atk.turnResult, $atk.ecmUsed, $atk.ecmRemaining); 
 		} 
 		"-" * $resultHeader.Length
 	}
