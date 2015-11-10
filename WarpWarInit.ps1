@@ -1,5 +1,5 @@
 #example invocation:
-#     $cS=$null; cls; $cS = .\WarpWarInit.ps1 -Verbose; $cS.ComponentSpecs | format-table -property * -wrap -autosize
+#     cls; $gs = .\WarpWarInit.ps1 -Verbose; $gs
 
 
 [cmdletBinding()]
@@ -25,6 +25,8 @@ write-verbose "TEMPLATE"
 write-verbose ("`n"+"`n"+ (printShipInfo -s $GameState.ShipTemplate -includeZeroes | out-string) )
 write-verbose "SHIPS"
 write-verbose ("`n"+( $GameState.ShipSpecs    | % { "`n"; printShipInfo -s $_ } | out-string))
+write-verbose "SYSTEMS"
+#write-verbose ("`n"+( $GameState.Systems    | % { "`n"; printSystemInfo -s $_ } | out-string))
 
 $numTurns     = 2
 $combatShips  = $GameState.ShipSpecs | ? { $_.TurnOrders -ne $null }
