@@ -183,6 +183,7 @@ function Calculate-ECMResult()
  )
 	
 	$ecmToUse               = 0
+	$ecmAvailable           = $resultObject.ecmRemaining
 	$midResult              = $resultObject.crtResult
 	
 	while($resultObject.crtResult -like "Hit*" -and ++$ecmToUse -le $resultObject.ecmRemaining)
@@ -212,9 +213,9 @@ function Calculate-ECMResult()
 			}
 			if( $highDamageBonus -lt $midDamageBonus -or $lowDamageBonus -lt $midDamageBonus)
 			{
-				$resultObject.ecmUsed       = $ecmToUse
-				$resultObject.ecmRemaining -= $resultObject.ecmUsed
-				write-verbose ("  [{0,-20}] : ECM SUCCESS - Adjust result to $($resultObject.crtResult) and record ECM usage $($resultObject.ecmUsed)" -f $MyInvocation.MyCommand)
+				$resultObject.ecmUsed      = $ecmToUse
+				$resultObject.ecmRemaining = $ecmAvailable - $resultObject.ecmUsed
+				write-verbose ("  [{0,-20}] : ECM SUCCESS - Adjust result to $($resultObject.crtResult) and record ECM usage $($resultObject.ecmUsed), $($resultObject.ecmRemaining) left" -f $MyInvocation.MyCommand)
 			}
 		}
 		else
