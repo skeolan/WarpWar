@@ -63,7 +63,7 @@ function Resolve-Attack()
 
 	$a        = $attacker
 	$aName    = $a.Name
-	$aTL      = [Math]::Min((NullCoalesce($ao.TL, $a.TL, 1)), 1)
+	$aTL      = [Math]::Max((NullCoalesce($ao.TL, $a.TL, 1)), 1)
 	$ao       = $attackerOrders
 	$apo      = NullCoalesce($ao.PowerAllocation, $a.PowerAllocation)
 	$aTactic  = NullCoalesce($ao.Tactic, "??")
@@ -72,7 +72,7 @@ function Resolve-Attack()
 
 	$d             = $defender
 	$dName         = $d.Name
-	$dTL           = [Math]::Min((NullCoalesce($d.TL, 1)), 1)
+	$dTL           = [Math]::Max((NullCoalesce($do.TL, $d.TL, 1)), 1)
 	$do            = $defenderOrders
 	$dpo           = nullCoalesce($do.PowerAllocation, $d.PowerAllocation)
 	$dTactic       = nullCoalesce ($do.Tactic, "??")
@@ -154,19 +154,41 @@ function Calculate-AttackResult()
 	$driveDiff       = $aDrive - $dDrive
 	$driveDiffIndex  = Get-DriveDiffIndex $driveDiff $maxDelta
 	
-	$midResult = $CRT.$aTac.$dTac[$driveDiffIndex]
-	$crtResult = $midResult
-	$ecmUsed   = 0
+	$resultObject.crtResult = $CRT.$aTac.$dTac[$driveDiffIndex]
 	
 	#ECM in play must be at least 1 for ECM to be a factor, AND damage must be possible, AND weapon must be indirect-fire
-	if($attackType -ne "indirect" -or $crtResult -notlike "Hit*" -or $dECM -lt 1)
+	if($attackType -ne "indirect" -or $resultObject.crtResult -notlike "Hit*" -or $dECM -lt 1)
 	{
-		write-verbose ("  [{0,-20}] : ECM resolution for (ECM [$dECM], $crtResult, $attackType) does NOT apply, skipping ECM result evaluation" -f $MyInvocation.MyCommand)
+		write-verbose ("  [{0,-20}] : ECM resolution for (ECM [$dECM], $($resultObject.crtResult), $attackType) does NOT apply, skipping ECM result evaluation" -f $MyInvocation.MyCommand)
 	}
-	while($attackType -eq "indirect" -and $crtResult -like "Hit*" -and ++$ecmToUse -le $dECM)
+	else
+	{
+		write-verbose ("  [{0,-20}] : ECM resolution applies, evaluating..." -f $MyInvocation.MyCommand)
+		$resultObject = Calculate-ECMResult $resultObject $dTL $aTL
+	}
+	
+	write-verbose("[ENGINE:Calculate-CombatResult]          {0} vs {1} at Drive {2}-{3}=>{4} (read as {5}) ecm {6} = {7}" -f $aTac, $dTac, $aDrive, $dDrive, $driveDiff, $driveDiffIndex, $ecmUsed, $crtResult)
+	
+	#return
+	$resultObject
+}
+
+function Calculate-ECMResult()
+{
+ [CmdletBinding()]
+ param(
+	  $resultObject
+	, $defenderTL
+	, $attackerTL
+ )
+	
+	$ecmToUse               = 0
+	$midResult              = $resultObject.crtResult
+	
+	while($resultObject.crtResult -like "Hit*" -and ++$ecmToUse -le $resultObject.ecmRemaining)
 	{
 		write-verbose ("  [{0,-20}] : evaluate using ECM {1}" -f $MyInvocation.MyCommand, $ecmToUse)
-		$driveDiffAdj = [Math]::Max(0, ($dTL - $aTL + $ecmToUse))
+		$driveDiffAdj = [Math]::Max(0, ($defenderTL - $attackerTL + $ecmToUse))
 		if($driveDiffAdj -gt 0) 
 		{
 			$lowIndex         = Get-DriveDiffIndex ($driveDiff - $driveDiffAdj) $maxDelta
@@ -175,36 +197,31 @@ function Calculate-AttackResult()
 			$highResult       = $CRT.$aTac.$dTac[$highIndex]
 			
 			$lowDamageBonus  = Get-HitDamageBonus $lowResult 
-			$midDamageBonus  = Get-HitDamageBonus $crtResult 
+			$midDamageBonus  = Get-HitDamageBonus $midResult 
 			$highDamageBonus = Get-HitDamageBonus $highResult
 
 			write-verbose ("  [{0,-20}] : using ECM {1} changes result [$driveDiffIndex]$midResult($midDamageBonus) to [$lowIndex]{2}($lowDamageBonus) or [$highIndex]{3}($highDamageBonus)" -f $MyInvocation.MyCommand, $ecmToUse, $lowResult, $highResult)
 			
 			if( $lowDamageBonus -lt $midDamageBonus)
 			{
-				$ecmUsed = $ecmToUse
-				$crtResult = $lowResult
-				write-verbose ("  [{0,-20}] : ECM SUCCESS - Adjust result to $crtResult and record ECM usage $ecmUsed" -f $MyInvocation.MyCommand)
+				$resultObject.crtResult = $lowResult
 			}
-			if( $highDamageBonus -lt $midDamageBonus)
+			if( $highDamageBonus -lt $midDamageBonus -and $highDamageBonus -lt $lowDamageBonus)
 			{
-				$ecmUsed = $ecmToUse
-				$crtResult = $highResult
-				write-verbose ("  [{0,-20}] : ECM SUCCESS - Adjust result to $crtResult and record ECM usage $ecmUsed" -f $MyInvocation.MyCommand)
+				$resultObject.crtResult = $highResult
+			}
+			if( $highDamageBonus -lt $midDamageBonus -or $lowDamageBonus -lt $midDamageBonus)
+			{
+				$resultObject.ecmUsed       = $ecmToUse
+				$resultObject.ecmRemaining -= $resultObject.ecmUsed
+				write-verbose ("  [{0,-20}] : ECM SUCCESS - Adjust result to $($resultObject.crtResult) and record ECM usage $($resultObject.ecmUsed)" -f $MyInvocation.MyCommand)
 			}
 		}
 		else
 		{
 			write-verbose ("  [{0,-20}] : No effect on hit result, index adjustment dTL{1} - aTL{2} + ecm{3} = {4}" -f $MyInvocation.MyCommand, $dTL, $aTL, $ecmToUse, $driveDiffAdj)
 		}
-	}
-	
-	write-verbose("[ENGINE:Calculate-CombatResult]          {0} vs {1} at Drive {2}-{3}=>{4} (read as {5}) ecm {6} = {7}" -f $aTac, $dTac, $aDrive, $dDrive, $driveDiff, $driveDiffIndex, $ecmUsed, $crtResult)
-	
-	$resultObject.crtResult     = $crtResult
-	$resultObject.ecmUsed       = $ecmUsed
-	$resultObject.ecmRemaining -= $ecmUsed
-	
+	}	
 	#return
 	$resultObject
 }
@@ -249,15 +266,13 @@ function Get-HitDamageBonus()
 	param(
 		$hitResult
 	)
-	
-	$bonus = switch -w ($hitResult) {
-			"Escapes" { -99; break; }
-			"Miss"    { -99; break; }
-			"Hit*"    { 0+(($hitResult -split "\+")[1]); break; }
-			Default   { $null; break; }
-		}
-	
-	$bonus
+	#return
+	switch -w ($hitResult) {
+			"Escapes" { -999;                              break; }
+			"Miss"    {  -99;                              break; }
+			"Hit*"    {   0+(($hitResult -split "\+")[1]); break; }
+			Default   {    0;                              break; }
+	}
 }
 
 function Get-DriveDiffIndex()
