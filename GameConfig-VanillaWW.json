@@ -122,7 +122,7 @@
 		      "ID"              : "IWS-01-001"
 		    , "Name"            : "Gladius-1"
 		    , "Owner"           : "Empire"
-		    , "Components"      : { "SWG":1, "PD":4, "B":0, "S":1, "SR":2, "T":2, "M":6 }
+		    , "Components"      : { "SWG":1, "PD":4, "B":3, "S":1, "SR":2, "T":2, "M":6 }
 		    , "Racks"           : ["ISS-0A-001", "BOGUS"]
 		    , "Location"        : "SYS001"
 		    , "Damage"          : { "SR":1 }
@@ -131,19 +131,17 @@
 		    , "TurnOrders"      : [
 		  						      {
 										  "Tactic"         : "Attack"
-										, "PowerAllocation": { "S":1, "B":0, "PD":1, "T":2 }
+										, "PowerAllocation": { "S":1, "B":3, "PD":1, "T":2 }
 										, "Attacks"        : [
 															  {
 																 "Weapon"       : "B"
 															   , "Target"       : "RWS-01-001"
-															   , "Power"        : 0
+															   , "Power"        : 1
 															  }
 															  ,{
-																  "Weapon"      : "T"
+																  "Weapon"      : "B"
 																, "Target"      : "RWS-01-001"
-																, "Power"       : 1
-																, "WeaponAmmo"  : "M"
-																, "WeaponDrive" : 2
+																, "Power"       : 2
 															  }
 															  ,{
 																  "Weapon"      : "T"
@@ -151,8 +149,8 @@
 																, "RoF"         : 1
 																, "WeaponDrive" : 2
 																, "Power"       : 1
+																, "TL"          : 10
 																, "WeaponAmmo"  : "M"
-																, "TL"          : 3
 															  }
 															 ]
 		  							  }

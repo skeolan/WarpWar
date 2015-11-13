@@ -63,8 +63,8 @@ function Resolve-Attack()
 
 	$a        = $attacker
 	$aName    = $a.Name
-	$aTL      = [Math]::Max((NullCoalesce($ao.TL, $a.TL, 1)), 1)
 	$ao       = $attackerOrders
+	$aTL      = [Math]::Max((NullCoalesce($attack.TL, $ao.TL, $a.TL, 1)), 1)
 	$apo      = NullCoalesce($ao.PowerAllocation, $a.PowerAllocation)
 	$aTactic  = NullCoalesce($ao.Tactic, "??")
 	$aDrv     = NullCoalesce($attack.WeaponDrive, $apo.PD, 0)
@@ -72,8 +72,8 @@ function Resolve-Attack()
 
 	$d             = $defender
 	$dName         = $d.Name
-	$dTL           = [Math]::Max((NullCoalesce($do.TL, $d.TL, 1)), 1)
 	$do            = $defenderOrders
+	$dTL           = [Math]::Max((NullCoalesce($do.TL, $d.TL, 1)), 1)
 	$dpo           = nullCoalesce($do.PowerAllocation, $d.PowerAllocation)
 	$dTactic       = nullCoalesce ($do.Tactic, "??")
 	$dDrv          = nullCoalesce ($dpo.PD, -1)	
@@ -86,6 +86,8 @@ function Resolve-Attack()
 	$aAmmo    = nullCoalesce ($attack.WeaponAmmo, $aWeapon)
 	$aTactic  = nullCoalesce ($ao.Tactic, "??")
 	$aWeaponPower  = nullCoalesce ($attack.Power, $apo.$aWeapon, 0)
+	
+	$driveDiff = $aDrv - $dDrv
 	
 	$attackResult = @{
 		"attacker"     = $attacker.ID;
@@ -101,14 +103,19 @@ function Resolve-Attack()
  	}
 	
 	
-	write-verbose ("[ENGINE:Resolve-Attack]     - [{0}]({1}) with {2} shot(s) from {3} - {4} at speed {5} vs [{6}]({7}) {8} at speed {9} and ECM {10}/{11} -- TL {12} vs {13}" -f $a.Name, $a.ID, $aRoF, $aWeapon, $aTactic, $aDrv, $dName, $attack.Target, $dTactic, $dDrv, $dECMUsed, $dECMAvailable, $aTL, $dTL)
+	write-verbose ("[ENGINE:Resolve-Attack]     - [{0}]({1}) with {2} shot(s) and power [$aWeaponPower] from {3} - {4} at speed {5} vs [{6}]({7}) {8} at speed {9} and ECM {10}/{11} -- TL {12} vs {13}" `
+	               -f $a.Name, $a.ID, $aRoF, $aWeapon, $aTactic, $aDrv, $dName, $attack.Target, $dTactic, $dDrv, $dECMUsed, $dECMAvailable, $aTL, $dTL)
 	if((nullCoalesce($attack.WeaponDrive, -1)) -ne -1) 
 	{
 		$attackResult.attackType = "indirect" 
 	}
 	
-	$attackResult = Calculate-AttackResult $aTactic $dTactic $aDrv $dDrv $crt $attackResult $maxdelta $aTL $dTL $dECMAvailable $attackResult.AttackType
-	#If weapon attack features its own drive rating, then it's a guided/indirect weapon and the ECM rules apply.
+	$attackResult.crtResult = Calculate-AttackResult $aTactic $dTactic $driveDiff $crt $maxdelta
+	if($dECMAvailable -gt 0 -and $attackResult.crtResult -like "Hit*" -and $attackResult.attackType -eq "indirect")
+	{
+		$attackResult = Calculate-ECMResult $aTactic $dTactic $driveDiff $crt $attackResult $maxDelta $dTL $aTL
+	}
+
 	if($attackResult.crtResult -ne "Miss" -and $attackResult.crtResult -ne "Escapes")
 	{
 		$attackResult.Damage = Calculate-WeaponDamage $aWeapon $aWeaponPower $aRoF $gameConfig.ComponentSpecs $attackResult.crtResult $aAmmo $aTL ($gameConfig.Constants.TL_addTo_Damage -gt 0)
@@ -139,69 +146,48 @@ function Calculate-AttackResult()
  param(
 	  $aTac
 	, $dTac
-	, $aDrive
-	, $dDrive
+	, $driveDiff
 	, $CRT                  #Combat Results Table lookup object, structured for lookups like AttackerTactic.DefenderTactic[DriveDiff]
-	, $resultObject         #Structured attack-result object for returning resolution info
-	
 	, $maxDelta=5           #Maximum absolute value of drive difference - all out-of-bounds results are Miss or Escapes
-	, $aTL=1                # for missile / ECM resolution
-	, $dTL=1                # for missile / ECM resolution
-	, $dECM=0               # for missile / ECM resolution
-	, $attackType="direct"  # for missile / ECM resolution
+	, $attackType="direct"  #Potentially used in future for more advanced CRT rules (i.e. different CRT arrays for different weapon types)
 	)
 	
-	$driveDiff       = $aDrive - $dDrive
-	$driveDiffIndex  = Get-DriveDiffIndex $driveDiff $maxDelta
-	
-	$resultObject.crtResult = $CRT.$aTac.$dTac[$driveDiffIndex]
-	
-	#ECM in play must be at least 1 for ECM to be a factor, AND damage must be possible, AND weapon must be indirect-fire
-	if($attackType -ne "indirect" -or $resultObject.crtResult -notlike "Hit*" -or $dECM -lt 1)
-	{
-		write-verbose ("  [{0,-20}] : ECM resolution for (ECM [$dECM], $($resultObject.crtResult), $attackType) does NOT apply, skipping ECM result evaluation" -f $MyInvocation.MyCommand)
-	}
-	else
-	{
-		write-verbose ("  [{0,-20}] : ECM resolution applies, evaluating..." -f $MyInvocation.MyCommand)
-		$resultObject = Calculate-ECMResult $resultObject $dTL $aTL
-	}
-	
-	write-verbose("[ENGINE:Calculate-CombatResult]          {0} vs {1} at Drive {2}-{3}=>{4} (read as {5}) ecm {6} = {7}" -f $aTac, $dTac, $aDrive, $dDrive, $driveDiff, $driveDiffIndex, $ecmUsed, $crtResult)
-	
 	#return
-	$resultObject
+	$CRT.$aTac.$dTac[(Get-DriveDiffIndex $driveDiff $maxDelta)]
 }
 
 function Calculate-ECMResult()
 {
  [CmdletBinding()]
  param(
-	  $resultObject
-	, $defenderTL
-	, $attackerTL
+	  $aTac
+	, $dTac
+	, $driveDiff
+	, $crt
+	, $resultObject 
+	, $maxDelta 
+	, $dTL 
+	, $aTL
  )
 	
 	$ecmToUse               = 0
 	$ecmAvailable           = $resultObject.ecmRemaining
-	$midResult              = $resultObject.crtResult
 	
 	while($resultObject.crtResult -like "Hit*" -and ++$ecmToUse -le $resultObject.ecmRemaining)
 	{
 		write-verbose ("  [{0,-20}] : evaluate using ECM {1}" -f $MyInvocation.MyCommand, $ecmToUse)
-		$driveDiffAdj = [Math]::Max(0, ($defenderTL - $attackerTL + $ecmToUse))
+		$driveDiffAdj = [Math]::Max(0, ($dTL - $aTL + $ecmToUse))
 		if($driveDiffAdj -gt 0) 
 		{
-			$lowIndex         = Get-DriveDiffIndex ($driveDiff - $driveDiffAdj) $maxDelta
-			$highIndex        = Get-DriveDiffIndex ($driveDiff + $driveDiffAdj) $maxDelta
-			$lowResult        = $CRT.$aTac.$dTac[$lowIndex]
-			$highResult       = $CRT.$aTac.$dTac[$highIndex]
+			$lowResult        = Calculate-AttackResult $aTac $dTac ($driveDiff - $driveDiffAdj) $CRT $maxDelta
+			$midResult        = $resultObject.crtResult
+			$highResult       = Calculate-AttackResult $aTac $dTac ($driveDiff + $driveDiffAdj) $CRT $maxDelta
 			
 			$lowDamageBonus  = Get-HitDamageBonus $lowResult 
 			$midDamageBonus  = Get-HitDamageBonus $midResult 
 			$highDamageBonus = Get-HitDamageBonus $highResult
 
-			write-verbose ("  [{0,-20}] : using ECM {1} changes result [$driveDiffIndex]$midResult($midDamageBonus) to [$lowIndex]{2}($lowDamageBonus) or [$highIndex]{3}($highDamageBonus)" -f $MyInvocation.MyCommand, $ecmToUse, $lowResult, $highResult)
+			write-verbose ("  [{0,-20}] : using ECM {1} changes result [$driveDiff] '$midResult' ($midDamageBonus) to [$($driveDiff-$driveDiffAdj)] '{2}' ($lowDamageBonus) or [$($driveDiff+$driveDiffAdj)] '{3}' ($highDamageBonus)" -f $MyInvocation.MyCommand, $ecmToUse, $lowResult, $highResult)
 			
 			if( $lowDamageBonus -lt $midDamageBonus)
 			{
@@ -241,24 +227,33 @@ function Calculate-WeaponDamage()
 		  , $wepTL = 0
 		  , $adjustDmgForTL = 1
 	)
-	
-	$weaponSpec     = @($cSpec | ? { $_.Name -eq $wepName })[0]
-	$wepAmmo        = nullCoalesce $wepAmmo, $wepName
-	$ammoSpec       = @($cSpec | ? { $_.Name -eq $wepAmmo })[0]
-	$damageBase     = $ammoSpec.Damage
-	$TLBonus        = switch($adjustDmgForTL) {
-		$true   { $wepTL; break; }
-		$false  { 0     ; break; }
+	if( (nullCoalesce($wepPwr, 0)) -eq 0)
+	{
+		#return
+		0
 	}
-	$hitBonus = Get-HitDamageBonus($result)
-	$damageFinal = ($ammoSpec.Damage * $wepPwr * $wepRoF) + $TLBonus + $hitBonus
-	#Power allocation to 
-	$damageCalcHeader = "|Weapon | Ammo :(Base x Power x Shots) + TL? + Result      = Total |"
-	$damageCalcHeader += "`n     " + ("-" * $damageCalcHeader.Length)
-	$damageCalcVals   = "|{0,-6} | {1,-4} :({2,4} x {3,5} x {4,5}) + {5,3} + {6,2} ({7,-5})  = {8,5}" `
-	                    -f $wepName, $wepAmmo, $damageBase, $wepPwr, $wepRoF, $TLBonus, $hitBonus, $result, $damageFinal
-	write-verbose "CALCULATE-WEAPONDAMAGE: `n     $damageCalcHeader`n     $damageCalcVals"
-	$damageFinal
+	else
+	{
+		$weaponSpec     = @($cSpec | ? { $_.Name -eq $wepName })[0]
+		$wepAmmo        = nullCoalesce $wepAmmo, $wepName
+		$ammoSpec       = @($cSpec | ? { $_.Name -eq $wepAmmo })[0]
+		$damageBase     = $ammoSpec.Damage
+		$TLBonus        = switch($adjustDmgForTL) {
+			$true   { $wepTL; break; }
+			$false  { 0     ; break; }
+		}
+		$hitBonus = Get-HitDamageBonus($result)
+		$damageFinal = ($ammoSpec.Damage * $wepPwr * $wepRoF) + $TLBonus + $hitBonus
+		#Power allocation to 
+		$damageCalcHeader = "|Weapon | Ammo :(Base x Power x Shots) + TL? + Result      = Total |"
+		$damageCalcHeader += "`n     " + ("-" * $damageCalcHeader.Length)
+		$damageCalcVals   = "|{0,-6} | {1,-4} :({2,4} x {3,5} x {4,5}) + {5,3} + {6,2} ({7,-5})  = {8,5}" `
+							-f $wepName, $wepAmmo, $damageBase, $wepPwr, $wepRoF, $TLBonus, $hitBonus, $result, $damageFinal
+		write-verbose "CALCULATE-WEAPONDAMAGE: `n     $damageCalcHeader`n     $damageCalcVals"
+		
+		#return
+		$damageFinal
+	}
 }
 
 function Get-HitDamageBonus()
@@ -271,6 +266,7 @@ function Get-HitDamageBonus()
 	switch -w ($hitResult) {
 			"Escapes" { -999;                              break; }
 			"Miss"    {  -99;                              break; }
+			"Hit-*"   {   0-(($hitResult -split "\-")[1]); break; }
 			"Hit*"    {   0+(($hitResult -split "\+")[1]); break; }
 			Default   {    0;                              break; }
 	}
