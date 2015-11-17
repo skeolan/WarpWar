@@ -91,6 +91,8 @@ function Resolve-Attack()
 	
 	$attackResult = @{
 		"attacker"     = $attacker.ID;
+		"tactic"       = $aTactic;
+		"drive"        = $aDrv;
 		"weapon"       = $aWeapon;
 		"ammo"         = $aAmmo;
 		"target"       = $d.ID;
@@ -100,6 +102,12 @@ function Resolve-Attack()
 		"attackType"   = "direct";
 		"ecmUsed"      = $dECMUsed;
 		"ecmRemaining" = $dECMAvailable;
+		"power"        = $aWeaponPower;
+		"shots"        = $aRoF;
+		"TL"           = $aTL;
+		"targetTactic" = $dTactic;
+		"targetDrive"  = $dDrv;
+		
  	}
 	
 	
