@@ -89,63 +89,66 @@ function Resolve-Attack()
 	
 	$driveDiff = $aDrv - $dDrv
 	
-	$attackResult = @{
+	#Attack Result object
+	$ar = @{
 		"attacker"     = $attacker.ID;
+		"attackerName" = $attacker.Name;
 		"tactic"       = $aTactic;
 		"drive"        = $aDrv;
 		"weapon"       = $aWeapon;
 		"ammo"         = $aAmmo;
-		"target"       = $d.ID;
 		"turnResult"   = "Continue";
 		"crtResult"    = "";
 		"damage"       = 0;
 		"attackType"   = "direct";
-		"ecmUsed"      = $dECMUsed;
-		"ecmRemaining" = $dECMAvailable;
 		"power"        = $aWeaponPower;
 		"shots"        = $aRoF;
 		"TL"           = $aTL;
+		"target"       = $d.ID;
+		"targetName"   = $d.Name;
 		"targetTactic" = $dTactic;
 		"targetDrive"  = $dDrv;
-		
+		"targetTL"     = $dTL;
+		"ecmUsed"      = $dECMUsed;
+		"ecmRemaining" = $dECMAvailable;
+		"driveDiff"    = $aDrv - $dDrv		
  	}
-	
-	
+		
 	write-verbose ("[ENGINE:Resolve-Attack]     - [{0}]({1}) with {2} shot(s) and power [$aWeaponPower] from {3} - {4} at speed {5} vs [{6}]({7}) {8} at speed {9} and ECM {10}/{11} -- TL {12} vs {13}" `
-	               -f $a.Name, $a.ID, $aRoF, $aWeapon, $aTactic, $aDrv, $dName, $attack.Target, $dTactic, $dDrv, $dECMUsed, $dECMAvailable, $aTL, $dTL)
+	               -f $ar.attackerName, $ar.attacker, $ar.shots, $ar.Weapon, $ar.tactic, $ar.drive, $ar.targetName, $ar.target, $ar.targetTactic, $ar.targetDrive, $ar.ecmUsed, $ar.ecmRemaining, $ar.TL, $ar.targetTL)
 	if((nullCoalesce($attack.WeaponDrive, -1)) -ne -1) 
 	{
-		$attackResult.attackType = "indirect" 
+		$ar.attackType = "indirect" 
 	}
 	
-	$attackResult.crtResult = Calculate-AttackResult $aTactic $dTactic $driveDiff $crt $maxdelta
-	if($dECMAvailable -gt 0 -and $attackResult.crtResult -like "Hit*" -and $attackResult.attackType -eq "indirect")
+	$ar.crtResult = Calculate-AttackResult $ar.tactic $ar.targetTactic $ar.driveDiff $crt $maxdelta
+	if($dECMAvailable -gt 0 -and $ar.crtResult -like "Hit*" -and $ar.attackType -eq "indirect")
 	{
-		$attackResult = Calculate-ECMResult $aTactic $dTactic $driveDiff $crt $attackResult $maxDelta $dTL $aTL
+		$ar = Calculate-ECMResult $crt $ar $maxDelta
 	}
 
-	if($attackResult.crtResult -ne "Miss" -and $attackResult.crtResult -ne "Escapes")
+	if($ar.crtResult -ne "Miss" -and $ar.crtResult -ne "Escapes")
 	{
-		$attackResult.Damage = Calculate-WeaponDamage $aWeapon $aWeaponPower $aRoF $gameConfig.ComponentSpecs $attackResult.crtResult $aAmmo $aTL ($gameConfig.Constants.TL_addTo_Damage -gt 0)
+		$ar.Damage = Calculate-WeaponDamage $ar.weapon $ar.power $ar.shots $gameConfig.ComponentSpecs $ar.crtResult $ar.Ammo $ar.TL ($gameConfig.Constants.TL_addTo_Damage -gt 0)
 		
 	}
 		
 	
-	if($attackResult.Damage -ne 0)
+	if($ar.Damage -ne 0)
 	{
-		write-verbose ( "{0}Target hit for {1} damage!" -f "[ENGINE:Resolve-Attack]     ", $attackResult.Damage)
+		write-verbose ( "{0}Target hit for {1} damage!" -f "[ENGINE:Resolve-Attack]     ", $ar.Damage)
 	}
-	if($wepResult -eq "Miss")
+	if($ar.crtResult -eq "Miss")
 	{
-		write-verbose ("{0} {1} attack with {2} missed {3} !" -f "[ENGINE:Resolve-Attack]     ", $attacker.Name, $wepName, $defender.Name)
+		write-verbose ("{0} {1} attack with {2} missed {3} !" -f "[ENGINE:Resolve-Attack]     ", $ar.attackerName, $ar.weapon, $ar.targetName)
 	}
-	if($wepResult -eq "Escapes")
+	if($ar.crtResult -eq "Escapes")
 	{
-		write-verbose ("{0} {1} attack with {2} missed and permitted {3} to escape!" -f "[ENGINE:Resolve-Attack]     ", $attacker.Name, $wepName, $defender.Name)
-		$attackResult.turnResult="Escapes"
+		write-verbose ("{0} {1} attack with {2} missed and permitted {3} to escape!" -f "[ENGINE:Resolve-Attack]     ", $ar.attackerName, $ar.weapon, $ar.targetName)
+		$ar.turnResult="Escapes"
 	}
 	
-	$attackResult
+	$ar
 }
 
 function Calculate-AttackResult()
@@ -168,18 +171,18 @@ function Calculate-ECMResult()
 {
  [CmdletBinding()]
  param(
-	  $aTac
-	, $dTac
-	, $driveDiff
-	, $crt
+	  $crt
 	, $resultObject 
 	, $maxDelta 
-	, $dTL 
-	, $aTL
  )
 	
-	$ecmToUse               = 0
-	$ecmAvailable           = $resultObject.ecmRemaining
+	$aTac         = $resultObject.tactic
+	$dTac         = $resultObject.targetTactic
+	$aTL          = $resultObject.TL
+	$dTL          = $resultObject.targetTL
+	$driveDiff    = $resultObject.drive - $resultObject.targetDrive
+	$ecmAvailable = $resultObject.ecmRemaining
+	$ecmToUse     = 0
 	
 	while($resultObject.crtResult -like "Hit*" -and ++$ecmToUse -le $resultObject.ecmRemaining)
 	{
