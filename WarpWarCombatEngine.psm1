@@ -62,59 +62,42 @@ function Resolve-Attack()
 	$maxDelta = NullCoalesce($gameConfig.Constants.Combat_max_DriveDiff, 5)
 
 	$a        = $attacker
-	$aName    = $a.Name
 	$ao       = $attackerOrders
-	$aTL      = [Math]::Max((NullCoalesce($attack.TL, $ao.TL, $a.TL, 1)), 1)
 	$apo      = NullCoalesce($ao.PowerAllocation, $a.PowerAllocation)
-	$aTactic  = NullCoalesce($ao.Tactic, "??")
-	$aDrv     = NullCoalesce($attack.WeaponDrive, $apo.PD, 0)
-	$aECM     = NullCoalesce($apo.E, 0)
 
 	$d             = $defender
-	$dName         = $d.Name
 	$do            = $defenderOrders
-	$dTL           = [Math]::Max((NullCoalesce($do.TL, $d.TL, 1)), 1)
 	$dpo           = nullCoalesce($do.PowerAllocation, $d.PowerAllocation)
-	$dTactic       = nullCoalesce ($do.Tactic, "??")
-	$dDrv          = nullCoalesce ($dpo.PD, -1)	
-	$dECMUsed      = nullCoalesce ($do.EcmUsed, 0)
-	$dECM          = nullCoalesce ($dpo.E , 0)
-	$dECMAvailable = [MATH]::MAX($dECM - $dECMUsed, 0)
-	          
-	$aWeapon  = nullCoalesce ($attack.Weapon, "??")
-	$aRoF     = nullCoalesce ($attack.RoF, 1)
-	$aAmmo    = nullCoalesce ($attack.WeaponAmmo, $aWeapon)
-	$aTactic  = nullCoalesce ($ao.Tactic, "??")
-	$aWeaponPower  = nullCoalesce ($attack.Power, $apo.$aWeapon, 0)
-	
-	$driveDiff = $aDrv - $dDrv
 	
 	#Attack Result object
 	$ar = @{
+		"damage"       = 0;
+		"crtResult"    = "";
+		"turnResult"   = "Continue";
+		"attackType"   = "direct";
+		
 		"attacker"     = $attacker.ID;
 		"attackerName" = $attacker.Name;
-		"tactic"       = $aTactic;
-		"drive"        = $aDrv;
-		"weapon"       = $aWeapon;
-		"ammo"         = $aAmmo;
-		"turnResult"   = "Continue";
-		"crtResult"    = "";
-		"damage"       = 0;
-		"attackType"   = "direct";
-		"power"        = $aWeaponPower;
-		"shots"        = $aRoF;
-		"TL"           = $aTL;
-		"target"       = $d.ID;
-		"targetName"   = $d.Name;
-		"targetTactic" = $dTactic;
-		"targetDrive"  = $dDrv;
-		"targetTL"     = $dTL;
-		"ecmUsed"      = $dECMUsed;
-		"ecmRemaining" = $dECMAvailable;
-		"driveDiff"    = $aDrv - $dDrv		
- 	}
+		"tactic"       = NullCoalesce($ao.Tactic, "??");
+		"drive"        = NullCoalesce($attack.WeaponDrive, $apo.PD, 0);
+		"weapon"       = nullCoalesce ($attack.Weapon, "??");
+		"ammo"         = nullCoalesce ($attack.WeaponAmmo, $attack.Weapon);
+		"power"        = nullCoalesce ($attack.Power, $apo.$($attack.Weapon), 0);
+		"shots"        = nullCoalesce ($attack.RoF, 1);
+		"TL"           = [Math]::Max((NullCoalesce($attack.TL, $ao.TL, $attacker.TL, 1)), 1);
 		
-	write-verbose ("[ENGINE:Resolve-Attack]     - [{0}]({1}) with {2} shot(s) and power [$aWeaponPower] from {3} - {4} at speed {5} vs [{6}]({7}) {8} at speed {9} and ECM {10}/{11} -- TL {12} vs {13}" `
+		"target"       = $defender.ID;
+		"targetName"   = $defender.Name;
+		"targetTactic" = NullCoalesce($do.Tactic, "??");;
+		"targetDrive"  = nullCoalesce ($dpo.PD, 0);
+		"targetTL"     = [Math]::Max((NullCoalesce($do.TL, $d.TL, 1)), 1);
+		"ecmUsed"      = nullCoalesce ($do.EcmUsed, 0);
+		"ecmRemaining" = [MATH]::MAX($dECM - $dECMUsed, 0);
+	}
+		
+	$ar.driveDiff    = $ar.drive - $ar.targetDrive		
+		
+	write-verbose ("[ENGINE:Resolve-Attack]     - [{0}]({1}) with {2} shot(s) and power [$($ar.power)] from {3} - {4} at speed {5} vs [{6}]({7}) {8} at speed {9} and ECM {10}/{11} -- TL {12} vs {13}" `
 	               -f $ar.attackerName, $ar.attacker, $ar.shots, $ar.Weapon, $ar.tactic, $ar.drive, $ar.targetName, $ar.target, $ar.targetTactic, $ar.targetDrive, $ar.ecmUsed, $ar.ecmRemaining, $ar.TL, $ar.targetTL)
 	if((nullCoalesce($attack.WeaponDrive, -1)) -ne -1) 
 	{
