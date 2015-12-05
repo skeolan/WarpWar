@@ -57,55 +57,46 @@ function Resolve-Attack()
 	)
 	
 	
-	write-verbose ( "[ENGINE:Resolve-Attack]     Orders: {0} : {1} at Drive {2}" -f $a.Name, $ao.Tactic, $ao.PowerAllocation.PD)
+	write-verbose ( "[ENGINE:Resolve-Attack]     Orders: {0} : {1} at Drive {2}" -f $attacker.Name, $attackerOrders.Tactic, $attackerOrders.PowerAllocation.PD)
 	$crt      = $gameConfig.CombatResults
 	$maxDelta = NullCoalesce($gameConfig.Constants.Combat_max_DriveDiff, 5)
 
-	$a        = $attacker
-	$ao       = $attackerOrders
-	$apo      = NullCoalesce($ao.PowerAllocation, $a.PowerAllocation)
-
-	$d             = $defender
-	$do            = $defenderOrders
-	$dpo           = nullCoalesce($do.PowerAllocation, $d.PowerAllocation)
-	
 	#Attack Result object
 	$ar = @{
-		"damage"       = 0;
-		"crtResult"    = "";
-		"turnResult"   = "Continue";
-		"attackType"   = "direct";
-		
-		"attacker"     = $attacker.ID;
-		"attackerName" = $attacker.Name;
-		"tactic"       = NullCoalesce($ao.Tactic, "??");
-		"drive"        = NullCoalesce($attack.WeaponDrive, $apo.PD, 0);
-		"weapon"       = nullCoalesce ($attack.Weapon, "??");
-		"ammo"         = nullCoalesce ($attack.WeaponAmmo, $attack.Weapon);
-		"power"        = nullCoalesce ($attack.Power, $apo.$($attack.Weapon), 0);
-		"shots"        = nullCoalesce ($attack.RoF, 1);
-		"TL"           = [Math]::Max((NullCoalesce($attack.TL, $ao.TL, $attacker.TL, 1)), 1);
-		
-		"target"       = $defender.ID;
-		"targetName"   = $defender.Name;
-		"targetTactic" = NullCoalesce($do.Tactic, "??");;
-		"targetDrive"  = nullCoalesce ($dpo.PD, 0);
-		"targetTL"     = [Math]::Max((NullCoalesce($do.TL, $d.TL, 1)), 1);
-		"ecmUsed"      = nullCoalesce ($do.EcmUsed, 0);
-		"ecmRemaining" = [MATH]::MAX($dECM - $dECMUsed, 0);
+		"damage"        = 0;
+		"crtResult"     = "";
+		"turnResult"    = "Continue";
+		"attackType"    = $( If( (NullCoalesce($attack.WeaponDrive, -1)) -eq -1) {"direct"} Else {"indirect"} );
+		"driveDiff"     = $( (NullCoalesce($attack.WeaponDrive, $attackerOrders.PowerAllocation.PD, 0)) - (NullCoalesce($defenderOrders.PowerAllocation.PD, $defender.PowerAllocation.PD, 0)) );
+
+		"attacker"      = $attacker.ID;
+		"attackerName"  = $attacker.Name;
+		"attackerOrders"= $attackerOrders;
+		"attackerPower" = NullCoalesce($attackerOrders.PowerAllocation, $attacker.PowerAllocation)
+		"tactic"        = NullCoalesce($attackerOrders.Tactic, "??");
+		"drive"         = NullCoalesce($attack.WeaponDrive, $attackerOrders.PowerAllocation.PD, 0);
+		"weapon"        = NullCoalesce ($attack.Weapon, "??");
+		"ammo"          = NullCoalesce ($attack.WeaponAmmo, $attack.Weapon);
+		"power"         = NullCoalesce ($attack.Power, $attackerOrders.PowerAllocation.$($attack.Weapon), 0);
+		"shots"         = NullCoalesce ($attack.RoF, 1);
+		"TL"            = [Math]::Max((NullCoalesce($attack.TL, $attackerOrders.TL, $attacker.TL, 1)), 1);
+
+		"target"        = $defender.ID;
+		"targetName"    = $defender.Name;
+		"targetOrders"  = $defenderOrders;
+		"targetPower"   = NullCoalesce($defenderOrders.PowerAllocation, $defender.PowerAllocation);
+		"targetTactic"  = NullCoalesce($defenderOrders.Tactic, "??");
+		"targetDrive"   = NullCoalesce($defenderOrders.PowerAllocation.PD, $defender.PowerAllocation.PD, 0);
+		"targetTL"      = [Math]::Max((NullCoalesce($do.TL, $d.TL, 1)), 1);
+		"ecmUsed"       = NullCoalesce ($defenderOrders.EcmUsed, 0);
+		"ecmRemaining"  = [MATH]::MAX( (($defenderOrders.PowerAllocation.E) - (NullCoalesce($defenderOrders.EcmUsed, 0))), 0);
 	}
-		
-	$ar.driveDiff    = $ar.drive - $ar.targetDrive		
 		
 	write-verbose ("[ENGINE:Resolve-Attack]     - [{0}]({1}) with {2} shot(s) and power [$($ar.power)] from {3} - {4} at speed {5} vs [{6}]({7}) {8} at speed {9} and ECM {10}/{11} -- TL {12} vs {13}" `
 	               -f $ar.attackerName, $ar.attacker, $ar.shots, $ar.Weapon, $ar.tactic, $ar.drive, $ar.targetName, $ar.target, $ar.targetTactic, $ar.targetDrive, $ar.ecmUsed, $ar.ecmRemaining, $ar.TL, $ar.targetTL)
-	if((nullCoalesce($attack.WeaponDrive, -1)) -ne -1) 
-	{
-		$ar.attackType = "indirect" 
-	}
 	
 	$ar.crtResult = Calculate-AttackResult $ar.tactic $ar.targetTactic $ar.driveDiff $crt $maxdelta
-	if($dECMAvailable -gt 0 -and $ar.crtResult -like "Hit*" -and $ar.attackType -eq "indirect")
+	if($ar.ecmRemaining -gt 0 -and $ar.crtResult -like "Hit*" -and $ar.attackType -eq "indirect")
 	{
 		$ar = Calculate-ECMResult $crt $ar $maxDelta
 	}
@@ -113,10 +104,8 @@ function Resolve-Attack()
 	if($ar.crtResult -ne "Miss" -and $ar.crtResult -ne "Escapes")
 	{
 		$ar.Damage = Calculate-WeaponDamage $ar.weapon $ar.power $ar.shots $gameConfig.ComponentSpecs $ar.crtResult $ar.Ammo $ar.TL ($gameConfig.Constants.TL_addTo_Damage -gt 0)
-		
-	}
-		
-	
+	}		
+
 	if($ar.Damage -ne 0)
 	{
 		write-verbose ( "{0}Target hit for {1} damage!" -f "[ENGINE:Resolve-Attack]     ", $ar.Damage)
@@ -165,11 +154,13 @@ function Calculate-ECMResult()
 	$dTL          = $resultObject.targetTL
 	$driveDiff    = $resultObject.drive - $resultObject.targetDrive
 	$ecmAvailable = $resultObject.ecmRemaining
+	$ecmRemaining = $resultObject.ecmRemaining
 	$ecmToUse     = 0
 	
-	while($resultObject.crtResult -like "Hit*" -and ++$ecmToUse -le $resultObject.ecmRemaining)
+	#No reason to burn ECM to turn a "Miss" into an "Escapes" since only direct-fire attacks are evaluated in retreat resolution.
+	while($resultObject.crtResult -like "Hit*" -and ++$ecmToUse -le $ecmAvailable)
 	{
-		write-verbose ("  [{0,-20}] : evaluate using ECM {1}" -f $MyInvocation.MyCommand, $ecmToUse)
+		write-verbose ("  [{0,-20}] : evaluate using ECM {1} / {2}" -f $MyInvocation.MyCommand, $ecmToUse, $ecmAvailable)
 		$driveDiffAdj = [Math]::Max(0, ($dTL - $aTL + $ecmToUse))
 		if($driveDiffAdj -gt 0) 
 		{
@@ -193,16 +184,19 @@ function Calculate-ECMResult()
 			}
 			if( $highDamageBonus -lt $midDamageBonus -or $lowDamageBonus -lt $midDamageBonus)
 			{
-				$resultObject.ecmUsed      = $ecmToUse
-				$resultObject.ecmRemaining = $ecmAvailable - $resultObject.ecmUsed
-				write-verbose ("  [{0,-20}] : ECM SUCCESS - Adjust result to $($resultObject.crtResult) and record ECM usage $($resultObject.ecmUsed), $($resultObject.ecmRemaining) left" -f $MyInvocation.MyCommand)
+				$resultObject.ecmUsed = $ecmToUse
+				$ecmRemaining         = $ecmAvailable - $ecmToUse
+				write-verbose ("  [{0,-20}] : ECM SUCCESS - Adjust result to $($resultObject.crtResult) and record ECM usage $($resultObject.ecmUsed), $($ecmAvailable - $resultObject.ecmUsed) left" -f $MyInvocation.MyCommand)
 			}
 		}
 		else
 		{
 			write-verbose ("  [{0,-20}] : No effect on hit result, index adjustment dTL{1} - aTL{2} + ecm{3} = {4}" -f $MyInvocation.MyCommand, $dTL, $aTL, $ecmToUse, $driveDiffAdj)
 		}
+		$resultObject.ecmRemaining = $ecmRemaining
 	}	
+	
+	
 	#return
 	$resultObject
 }

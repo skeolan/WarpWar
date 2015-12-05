@@ -92,13 +92,13 @@
 		    , "Owner"           : "Rebels"
 		    , "Location"        : { "X":1, "Y":1 }
 		    , "TL"              : 4
-		    , "Components"      : { "SWG":1, "PD":11, "C":1, "S":1, "SH":6, "SR":2, "ZZZ":1, "LWG":0, "E":7 }
+		    , "Components"      : { "SWG":1, "PD":13, "C":1, "S":1, "SH":6, "SR":2, "ZZZ":1, "LWG":0, "E":9 }
 		    , "Damage"          : { "ZZZ":1 }
 		    , "PowerAllocation" : { "PD":2, "C":1, "S":1, "E":7}
 		    , "TurnOrders"      : [
 		  						    {
 		  								  "Tactic"         : "Attack"
-		  								, "PowerAllocation": { "S":1, "C":1, "PD":2, "E":7 }
+		  								, "PowerAllocation": { "S":1, "C":1, "PD":2, "E":9 }
 										, "Attacks"        : [
 															   {
 															     "Weapon"         : "C"

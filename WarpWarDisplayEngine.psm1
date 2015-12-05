@@ -34,7 +34,13 @@ function Summarize-CombatResult()
 	param( $CombatResult )
 	foreach($key in ($CombatResult.Keys | sort)) 
 	{ 
-		$resultHeader = "$key - $($CombatResult[$key].Count) attack(s) : *[Weapon]{Power}/[Ammo]x{Shots}+{TL}" 
+		$resultTitle = "$key - $($CombatResult[$key].Count) attack(s) : *[Weapon]{Power}/[Ammo]x{Shots}+{TL}`n" 
+		$resultHeader = "| {0, -18} | {1, -18} | {2, -10} | {3, -8} | {4, -19} | {5, 6} |" -f `
+		                "Attacker", "Target", "AttackInfo*", "ECMInfo", "Result", "Damage"
+		
+		""
+		$resultTitle
+		"-" * $resultTitle.Length
 		""
 		$resultHeader
 		"-" * $resultHeader.Length
@@ -44,11 +50,11 @@ function Summarize-CombatResult()
 			$attackerBlock = "{0}({1,3})[{2}]" -f $atk.attacker, (Abbreviate-Tactic($atk.tactic)      ), $atk.drive
 			$targetBlock   = "{0}({1,3})[{2}]" -f $atk.target  , (Abbreviate-Tactic($atk.targetTactic)), $atk.targetDrive
 			$resultBlock   = ("{0,-3}, {1,-7}, {2,-3}" -f ($atk.attackType.Substring(0,3), $atk.crtResult, $atk.turnResult.substring(0,3)))
-			$weaponBlock   = "*{0}{1}/{2}x{3}+{4}" -f $atk.weapon, $atk.power, $atk.ammo, $atk.shots, $atk.TL
-			("{0,-10} vs {1,-10} with {2,-10} ECM {3}|{4} = ({5,-6}) for {6,2}" `
-			-f $attackerBlock, $targetBlock, $weaponBlock, $atk.ecmUsed, $atk.ecmRemaining, $resultBlock, $atk.damage); 
+			$weaponBlock   = "{0}{1}/{2,-2}x{3}+{4}" -f $atk.weapon, $atk.power, $atk.ammo, $atk.shots, $atk.TL
+			("| {0,-18} | {1,-18} | {2,-11} | {3,-2} ({4}/{5}) | ({6,-6}) | {7,6} |" `
+			-f $attackerBlock, $targetBlock, $weaponBlock, $atk.ecmUsed, ($atk.ecmRemaining+0), ($atk.ecmRemaining + $atk.ecmUsed), $resultBlock, $atk.damage)
+			"-" * $resultHeader.Length
 		} 
-		"-" * $resultHeader.Length
 	}
 }
 
