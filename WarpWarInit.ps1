@@ -37,4 +37,7 @@ write-verbose "Combat results:"
 write-verbose ""
 write-verbose ("`n" + (Summarize-CombatResult $combatResult | out-string))
 
+write-verbose "SHIPS Post-Combat"
+write-verbose ("`n"+( $GameState.ShipSpecs    | % { "`n"; printShipInfo -s $_ } | out-string))
+
 @{GameState = $GameState; CombatResults=$combatResult}

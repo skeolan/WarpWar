@@ -9,8 +9,6 @@ function execute-TurnOrder()
 		  , $gameConfig
 	)
 	
-	$gameConstants = $gameConfig.Constants
-	
 	#component data structures useful for adjudicating results
 	$cs   = $gameConfig.ComponentSpecs
 	$weps = $cs | ? { $_.CompType -eq "Weapon"     } # or $_.RoF -ne $null if you want to be fancy
@@ -35,13 +33,6 @@ function execute-TurnOrder()
 		$do.EcmUsed    += $attackResult.ecmUsed
 
 		$attackResults += $attackResult
-	}
-	
-	#Attacks take effect simultaneously, so apply damage or otherwise change state only after resolving all attacks.
-	foreach ($r in $attackResults)
-	{
-		$target = ($gameConfig.ShipSpecs | where { $_.ID -eq $r.Target})
-		Apply-AttackResultToTarget $r $target $gameConstants.TL_addTo_Screens
 	}
 	
 	write-verbose ( "[ENGINE:Execute-TurnOrder] Result: {0} attacks resolved" -f $attackResults.Count )
@@ -135,6 +126,7 @@ function Apply-AttackResultToTarget()
   param(
 	$attackResult
 	, $target
+	, $componentSpec
 	, $TL_addTo_Screens=$true
 	) 
 
@@ -143,7 +135,7 @@ function Apply-AttackResultToTarget()
 	write-verbose ("[{0, -30}]: {1,3} damage to [{2}] -- S[{3}], A[{4}] - TL affects Screens is {4}" -f $MyInvocation.MyCommand, $attackResult.damage, $target.Name, $target.ScreensRemaining, $target.ArmorRemaining, $TL_addTo_Screens )
 	
 	#Utilize the unit's specified Damage Vector if present, else just apply damage in order of listed Components
-	$damageVector            = NullCoalesce($target.DamageVector, $target.Components)
+	$target.DamageVector     = NullCoalesce($target.DamageVector, (Get-DamageVector $target.Components $componentSpec))
 	$target.ScreensRemaining = NullCoalesce($target.ScreensRemaining, (Calculate-ScreenRating $target $attackResult.TargetOrders $TL_addTo_Screens))
 	$target.ArmorRemaining   = NullCoalesce($target.ArmorRemaining, $target.Components.A, 0)
 	write-verbose ( "Target is [{0}] with Screens [{1}] (currently [{2}]) and armor [{3}]" -f $target.Name, $target.Components.S, $target.ScreensRemaining, $target.ArmorRemaining)
@@ -157,6 +149,7 @@ function Apply-AttackResultToTarget()
 			$damageDescriptor = "SCREENS"
 			$target.ScreensRemaining--
 			$d++
+			write-verbose ("   [{0}]: $d/$damageToAllocate to $($target.Name) $damageDescriptor" -f $MyInvocation.MyCommand)
 		}
 		#Next, apply damage to Armor
 		elseIf ($target.ArmorRemaining   -gt 0) 
@@ -164,16 +157,22 @@ function Apply-AttackResultToTarget()
 			$damageDescriptor = "ARMOR"
 			$target.ArmorRemaining-- 
 			$d++
+			write-verbose ("   [{0}]: $d/$damageToAllocate to $($target.Name) $damageDescriptor" -f $MyInvocation.MyCommand)
 		}
 		#Next, start burning through components in the order listed in the Unit's Damage Vector
 		else 
 		{ 
 			$damageDescriptor = "INTERNALS"
-			$d += (Apply-DamageToUnitComponents $target $damageVector)
+			write-verbose ("   [{0}]: all remaining damage to $($target.Name) $damageDescriptor" -f $MyInvocation.MyCommand)
 		}
 		
-		write-verbose ("   [  {0}]: $d/$damageToAllocate to $($target.Name) $damageDescriptor" -f $MyInvocation.MyCommand)
+		if($damageDescriptor -eq "INTERNALS")
+		{
+			$allRemainingDamage = $damageToAllocate - $d
+			$d += (Apply-DamageToUnitComponents $target $target.DamageVector $componentSpec $allRemainingDamage)
+		}
 	}
+	write-verbose ("   [{0}]: $d/$damageToAllocate damage allocated to $($target.Name)" -f $MyInvocation.MyCommand)
 }
 
 function Apply-DamageToUnitComponents()
@@ -182,6 +181,7 @@ function Apply-DamageToUnitComponents()
 	param(
 		$unit
 		, $damageVector	
+		, $componentSpec
 		, $damageAmount=1
 	)
 	
@@ -194,8 +194,54 @@ function Apply-DamageToUnitComponents()
 	
 	$vectorSummary += ""
 	
-	write-verbose ( "   [{0}]: {1} damage to {2} onto vector [{3}]" -f $MyInvocation.MyCommand, $damageAmount, $unit.Name, $vectorSummary )
-	$damageApplied = 1
+	write-verbose ( "   [  {0}]: {1} damage to {2} onto vector [{3}]" -f $MyInvocation.MyCommand, $damageAmount, $unit.Name, $vectorSummary )
+	$damageAssigned = 0
+	while($damageAssigned -lt $damageAmount -and @($damageVector.Keys).Count -gt 0)
+	{
+		$componentName       = @($damageVector.Keys)[0]
+		$componentDamageRate = NullCoalesce(($componentSpec | ? { $_.Name -eq $componentName }).DamageRate, 1)
+		
+
+		if($unit.Damage.$componentName -eq $null) 
+		{
+			$unit.Damage.$componentName = 0
+		}
+
+		if($damageVector.$componentName -gt 0 -and $componentDamageRate -ne 0)
+		{
+			$componentValueLoss = [MATH]::MIN($componentDamageRate, $unit.EffectiveAttrs.$componentName)
+			write-verbose ( "          Apply 1 damage to component [{0}] from damage vector at a rate of {1} per point (loses {2})... " -f $componentName, $componentDamageRate, $componentValueLoss)
+			$damageVector.$componentName        -= $componentValueLoss
+			$unit.EffectiveAttrs.$componentName -= $componentValueLoss
+			$unit.Damage.$componentName         += $componentValueLoss
+			$damageAssigned++
+			if($damageVector.$componentName -eq 0)
+			{
+				$removalResult = $damageVector.Remove($componentName)
+				write-verbose "          Component $componentName on $($unit.Name) destroyed!"
+			}
+		}
+		
+		#If component's remaining damage allocation is zero, remove it from the damage vector
+		#If component is not a valid target for damage per the spec, remove it from the damage vector.
+		
+		if($componentDamageRate -eq 0)
+		{
+			$removalResult = $damageVector.Remove($componentName)
+			write-verbose "          Component $componentName on $($unit.Name) not a valid damage target, removing"
+			continue
+		}
+		
+		
+		#debug
+		#$damageAssigned++
+	}
+
+	if(@($damageVector.Keys).Count -eq 0)
+	{
+		write-verbose "          Unit $($unit.Name) damage vector is empty - no longer a valid target, DESTROYED?"
+	}
+	$damageApplied = $damageAmount
 	
 	#return
 	$damageApplied
@@ -340,6 +386,24 @@ function Calculate-ScreenRating()
 	
 	#return
 	$screenValue
+}
+
+function Get-DamageVector()
+{
+	[CmdletBinding()]
+	param(
+		$unitComponents
+		, $componentSpec
+	)
+	$damageVector = @{}
+	
+	foreach($entry in $unitComponents.GetEnumerator())
+	{
+		$damageVector[$entry.Key] = $entry.Value
+	}
+	
+	#return
+	$damageVector
 }
 
 function Get-HitDamageBonus()

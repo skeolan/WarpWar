@@ -45,8 +45,18 @@ function Resolve-CombatTurns ()
 						}
 			else           { write-verbose "Turn did not execute successfully?" }
 		} 
-		#TODO: Apply $resultSet to gamestate
-		#TODO: Remove any escaped or destroyed ships from $combatShips
+		
+		#Attacks take effect simultaneously, so apply damage or otherwise change state only after resolving all attacks.
+		foreach ($r in $resultSet)
+		{
+			$target              = ($GameState.ShipSpecs | where { $_.ID -eq $r.Target})
+			$attackResultApplied = Apply-AttackResultToTarget $r $target $GameState.ComponentSpecs $gameState.Constants.TL_addTo_Screens -verbose
+		}
+		
+		#Update units' derived / effective attributes based on combat damage
+		#Init-ShipCollections   -template $GameState.ShipTemplate -componentSpec $GameState.ComponentSpecs -shipSpec $GameState.ShipSpecs -systems $GameState.Systems
+		
+		#Remove any escaped or destroyed ships from $combatShips
 		$combatResult."Turn $turn" = ($resultSet) #Commit set of attack results to the combatResult array
 	}
 	
