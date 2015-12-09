@@ -5,9 +5,11 @@
 		, "Hull_damage_value"    : 0  
 		, "TL_addTo_BPLimit"     : 0  
 		, "TL_addTo_Damage"      : 1 
+		, "TL_addTo_Screens"     : 1
+		, "TL_addTo_ECM"         : 1
         , "#Comment_Hull_damage_value" : "0 for 'vanilla' rules; 1+ makes larger ships tougher than smaller ships with equal armor/shields/ecm."
         , "#Comment_TL_addTo_BPLimit"  : "0 for 'vanilla' rules; 1+ alters the BP-by-size calculation from the static max-size spec to (sqrt(MaxSize) * (sqrt(maxSize) + TL -1))"
-        , "#Comment_TL_addTo_Damage"   : "1 (True) for 'vanilla' rules; 0 (False) for no bonus damage from TL."
+        , "#Comment_TL_addTo_{Damage, Screens, ECM}"   : "1 (True) for 'vanilla' rules; 0 (False) for no bonuses from TL."
 	}
 	, "CombatResults":{
 		"#Comment" : "Address as CombatResults.<AttackerTactic>.<DefenderTactic>[<DriveDiff>+<Constants.Combat_max_DriveDiff>]"

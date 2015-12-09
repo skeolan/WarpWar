@@ -5,7 +5,7 @@ function init()
 		$cfg
 	)
 	Add-Type -AssemblyName System.Web.Extensions
-	$GameEngine  = (New-Object System.Web.Script.Serialization.JavaScriptSerializer).Deserialize($cfg, [System.Collections.Hashtable])
+	$GameData  = (New-Object System.Web.Script.Serialization.JavaScriptSerializer).Deserialize($cfg, [System.Collections.Hashtable])
 	$Constants = $GameData.Constants
 	
 	$CombatEngine     = import-module $PSScriptRoot\WarpWarCombatEngine.psm1      -Force
@@ -15,7 +15,7 @@ function init()
 	Init-ShipCollections   -template $GameData.ShipTemplate -componentSpec $GameData.ComponentSpecs -shipSpec $GameData.ShipSpecs -systems $GameData.Systems
 	Init-UnitMethods       -units    $GameData.ShipSpecs
 	
-	$GameEngine	
+	$GameData	
 }
 
 function Resolve-CombatTurns ()
@@ -67,12 +67,6 @@ function init-ShipsFromTemplate()
 	$ships = $shipSpecs
 	$cs = $componentSpec
 
-	#Convert template's Components and PowerAllocation dictionaries into KeyValuePair arrays for consistency
-	#$shipT.Components      = $shipT.Components.GetEnumerator()      | ? { $_.Value -ne $null }
-	#$shipT.PowerAllocation = $shipT.PowerAllocation.GetEnumerator() | ? { $_.Value -ne $null }
-
-
-	
 	foreach ($ship in $ships)
 	{
 		foreach ($tProperty in $shipT.Keys)

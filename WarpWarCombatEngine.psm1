@@ -1,6 +1,5 @@
 #WarpWarCombatEngine
 
-
 function execute-TurnOrder()
 {
 	[cmdletBinding()]
@@ -10,7 +9,7 @@ function execute-TurnOrder()
 		  , $gameConfig
 	)
 	
-	
+	$gameConstants = $gameConfig.Constants
 	
 	#component data structures useful for adjudicating results
 	$cs   = $gameConfig.ComponentSpecs
@@ -38,6 +37,12 @@ function execute-TurnOrder()
 		$attackResults += $attackResult
 	}
 	
+	#Attacks take effect simultaneously, so apply damage or otherwise change state only after resolving all attacks.
+	foreach ($r in $attackResults)
+	{
+		$target = ($gameConfig.ShipSpecs | where { $_.ID -eq $r.Target})
+		Apply-AttackResultToTarget $r $target $gameConstants.TL_addTo_Screens
+	}
 	
 	write-verbose ( "[ENGINE:Execute-TurnOrder] Result: {0} attacks resolved" -f $attackResults.Count )
 	$attackResults
@@ -120,7 +125,80 @@ function Resolve-Attack()
 		$ar.turnResult="Escapes"
 	}
 	
+	#Return
 	$ar
+}
+
+function Apply-AttackResultToTarget()
+{
+  [CmdletBinding()]
+  param(
+	$attackResult
+	, $target
+	, $TL_addTo_Screens=$true
+	) 
+
+	$damageToAllocate = $attackResult.Damage
+	
+	write-verbose ("[{0, -30}]: {1,3} damage to [{2}] -- S[{3}], A[{4}] - TL affects Screens is {4}" -f $MyInvocation.MyCommand, $attackResult.damage, $target.Name, $target.ScreensRemaining, $target.ArmorRemaining, $TL_addTo_Screens )
+	
+	#Utilize the unit's specified Damage Vector if present, else just apply damage in order of listed Components
+	$damageVector            = NullCoalesce($target.DamageVector, $target.Components)
+	$target.ScreensRemaining = NullCoalesce($target.ScreensRemaining, (Calculate-ScreenRating $target $attackResult.TargetOrders $TL_addTo_Screens))
+	$target.ArmorRemaining   = NullCoalesce($target.ArmorRemaining, $target.Components.A, 0)
+	write-verbose ( "Target is [{0}] with Screens [{1}] (currently [{2}]) and armor [{3}]" -f $target.Name, $target.Components.S, $target.ScreensRemaining, $target.ArmorRemaining)
+
+	$d=0
+	while($d -lt $damageToAllocate)
+	{
+		#First, buy down damage with Screens
+		if      ($target.ScreensRemaining -gt 0) 
+		{ 
+			$damageDescriptor = "SCREENS"
+			$target.ScreensRemaining--
+			$d++
+		}
+		#Next, apply damage to Armor
+		elseIf ($target.ArmorRemaining   -gt 0) 
+		{ 
+			$damageDescriptor = "ARMOR"
+			$target.ArmorRemaining-- 
+			$d++
+		}
+		#Next, start burning through components in the order listed in the Unit's Damage Vector
+		else 
+		{ 
+			$damageDescriptor = "INTERNALS"
+			$d += (Apply-DamageToUnitComponents $target $damageVector)
+		}
+		
+		write-verbose ("   [  {0}]: $d/$damageToAllocate to $($target.Name) $damageDescriptor" -f $MyInvocation.MyCommand)
+	}
+}
+
+function Apply-DamageToUnitComponents()
+{
+	[CmdletBinding()]
+	param(
+		$unit
+		, $damageVector	
+		, $damageAmount=1
+	)
+	
+	$vectorSummary = ""
+	
+	foreach($kvp in $damageVector.GetEnumerator())
+	{
+		$vectorSummary += ("{0}:{1} " -f $kvp.Key, $kvp.Value)
+	}
+	
+	$vectorSummary += ""
+	
+	write-verbose ( "   [{0}]: {1} damage to {2} onto vector [{3}]" -f $MyInvocation.MyCommand, $damageAmount, $unit.Name, $vectorSummary )
+	$damageApplied = 1
+	
+	#return
+	$damageApplied
 }
 
 function Calculate-AttackResult()
@@ -146,6 +224,7 @@ function Calculate-ECMResult()
 	  $crt
 	, $resultObject 
 	, $maxDelta 
+	, $TL_addTo_ECM=$true
  )
 	
 	$aTac         = $resultObject.tactic
@@ -242,6 +321,25 @@ function Calculate-WeaponDamage()
 		#return
 		$damageFinal
 	}
+}
+
+function Calculate-ScreenRating()
+{
+	[CmdletBinding()]
+	param(
+		$unit
+		, $unitOrders
+		, $TL_addTo_Screens=$true
+	)
+	
+	$screenValue = $unitOrders.PowerAllocation.S
+	if($TL_addTo_Screens) 
+	{ 
+		$screenValue += $unit.TL 
+	}
+	
+	#return
+	$screenValue
 }
 
 function Get-HitDamageBonus()
