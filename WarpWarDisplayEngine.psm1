@@ -87,7 +87,7 @@ function printShipInfo
 	#Excluded info fields -- fields which either need additional special handling, or aren't to be displayed
 	$exclInfoFields = ("ID", "Name", "Cargo", "Components", "Damage", "DamageVector", "DerivedAttrs", "EffectiveAttrs", "HAvail", "HUsed", "MP", "PDPerMP", "SRAvail", "SRUsed", "Location", "TurnOrders", "PowerAllocation", "PowerUsed", "Racks", "Valid", "ValidationResult")
 	#Ordered info fields
-	$orderedInfoFields = ("Owner", "Universe", "TL", "BPCost", "BPMax", "Size", "MP", "ScreensAvailable", "ArmorAvailable") 
+	$orderedInfoFields = ("HullClass", "Owner", "Universe", "TL", "BPCost", "BPMax", "Size", "MP", "ScreensAvailable", "ArmorAvailable") 
 	foreach ($infoKey in $orderedInfoFields)
 	{ 
 		"| {0,-$infoEntryLeftSegmentLen}| {1, -$lineEntryFullLen} |" -f ($infoKey, (nullCoalesce $s.$infoKey, 0))
@@ -136,7 +136,7 @@ function print-ComponentDetail()
 		, $lineEntryFullLen         = 45
 	)
 	
-	$compInfoHeader="Max | Dmg | Eff | Pwr "		
+	$compInfoHeader="Max | Dmg | Rem | Pwr "		
 
 	if($collection.Count -gt 0 -or $includeZeroes)
 	{
@@ -159,7 +159,7 @@ function print-ComponentDetail()
 			$eKey         = $entry.Key
 			$eVal         = $entry.Value
 			$eDmgTxt      = (nullCoalesce $damageCollection.$eKey   , 0)
-			$eEffTxt      = (nullCoalesce $effectiveCollection.$eKey, ($eVal - $eDmgTxt))
+			$eEffTxt      = (nullCoalesce $effectiveCollection.$eKey, 0)
 			$eSpecTxt     = $eEffTxt + $eDmgTxt
 			$ePwrTxt      = (nullCoalesce ($powerCollection | ? { $_.Key -eq "$eKey" }).Value, 0)
 			$eRightBuffer = $lineEntryRightSegmentLen - $compInfoHeader.Length

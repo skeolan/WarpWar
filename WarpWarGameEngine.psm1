@@ -167,9 +167,10 @@ function generate-derivedAttrs()
 
 	#Hull/drivetype dependent
 	$unit.PDPerMP  = ( (get-DerivedValueSet -depKey "PDPerMP" -attrSet $unit.Components -depSpec $componentSpec )  | measure-object -sum).sum	
-	$unit.Size     = ( (get-DerivedValueSet -depKey "Hull" -attrSet $unit.Components -depSpec $componentSpec )  | measure-object -sum).sum	
 	$unit.BPMax    = ( (get-DerivedValueSet -depKey "MaxSize" -attrSet $unit.Components -depSpec $componentSpec )  | measure-object -sum).sum
 	$unit.MP       = calculate-MovementPoints -drive $unit.Components.PD -efficiency $unit.PDPerMP
+	$unit.HullClass= Get-HullName $unit $componentSpec
+	$unit.HullSize     = ( (get-DerivedValueSet -depKey "Hull" -attrSet $unit.Components -depSpec $componentSpec )  | measure-object -sum).sum	
 
 	#BPMax is simple for "vanilla" rules; Optional TL rule alters the BP-by-size calculation 
 	#  from the static max-size spec 
@@ -198,6 +199,8 @@ function generate-collectionAttrs()
 		
 }
 
+#"Effective Attribute" represents the value of a unit's component after factoring in damage or expenditure.
+#To preserve adjudication of Destroyed status, un-damageable components are considered to be "effectively" 0.
 function generate-effectiveAttrs()
 {
 	[cmdletBinding()]
@@ -215,10 +218,18 @@ function generate-effectiveAttrs()
 		$cSpec          = $componentSpec | ? { $_.Name -eq $cKey }
 		
 		
+		#If damage-able, Hull type components (WarpGen, Starbase, SystemShip) have "HP" equal to their Hull rating
 		if($cSpec.Hull -gt 0)
 		{
 			$cVal = $cSpec.Hull * $c.Value
 		}
+		
+		# Vanilla rules permit no damage to many components, so their "effective" value is zero.
+		if($cSpec.DamageRate -eq 0)
+		{
+			$cVal = 0
+		}
+		
 		
 		$dmgVal         = ($unit.Damage.$cKey)+0
 		$effectiveValue = ($cVal - $dmgVal)
@@ -373,6 +384,32 @@ function replace-IDsWithReferences()
 	}
 	
 	$newCollection
+}
+
+function get-HullName()
+{
+	[CmdletBinding()]
+	param(
+		$unit
+		, $componentSpecs
+	)
+	
+	
+	$unitHullName = "Unknown?"
+	$unitHullComponents = @()
+	foreach ( $entry in $unit.Components.GetEnumerator() )
+	{
+		$compN = $entry.Key;
+		$match = @($componentSpecs | ? { $_.Name -eq $compN -and $_.CompType -eq "Hull"} )
+		if($match.Count -gt 0)
+		{
+			#Multiple hull components are invalid design, so we only care about the first one
+			$unitHullName = $match[0].Info.LongName
+		}
+	}
+	
+	#return
+	$unitHullName
 }
 
 function nullCoalesce()
