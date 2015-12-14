@@ -42,19 +42,13 @@
 		, { "Name":"E"  , "BPCost": 1                           , "Defense": 0, "ECM":1, "DamageRate":1                                                              , "CompType":"Defense"    , "Info" : { "LongName":"ECM"                        , "Description":"Electronic countermeasures. ECM points alter attacking Missiles' effective Drive."    } }
 		, { "Name":"SR" , "BPCost": 1                                                  , "DamageRate":1                                                              , "CompType":"Carry"      , "Info" : { "LongName":"Systemship Rack"            , "Description":"Let a Warpship carry Systemships."                                                    } }
 		, { "Name":"H"  , "BPCost": 1                                                  , "DamageRate":1                                      , "Cargo":10            , "CompType":"Carry"      , "Info" : { "LongName":"Hold"                       , "Description":"Contain cargo and/or BPs."                                                            } }
-		, { "Name":"R"  , "BPCost": 5                                                  , "DamageRate":1                                                              , "CompType":"Utility"    , "Info" : { "LongName":"Repair"                     , "Description":"Use BPs in Hold or from Star to repair self or others during the build/repair event." } }
+		, { "Name":"R"  , "BPCost": 5                                                  , "DamageRate":0                                                              , "CompType":"Utility"    , "Info" : { "LongName":"Repair"                     , "Description":"Use BPs in Hold or from Star to repair self or others during the build/repair event." } }
 		, { "Name":"CP" , "BPCost":15                                                  , "DamageRate":0                                                              , "CompType":"Utility"    , "Info" : { "LongName":"Colony Pod"                 , "Description":"Establishes a new Colony when deployed."                                              } }
-		, { "Name":"SSB", "BPCost": 7                                                  , "DamageRate":0, "Hull": 8, "MaxSize": 64                                    , "CompType":"Hull"       , "Info" : { "LongName":"Small Starbase"             , "Description":"For bases BP 64(H 8) or smaller. (Defsat)"                                            } }
-		, { "Name":"MSB", "BPCost":13                                                  , "DamageRate":0, "Hull":12, "MaxSize":144                                    , "CompType":"Hull"       , "Info" : { "LongName":"Medium Starbase"            , "Description":"For bases BP144(H12) or smaller. (Station)"                                           } }
-		, { "Name":"LSB", "BPCost":25                                                  , "DamageRate":0, "Hull":20, "MaxSize":400                                    , "CompType":"Hull"       , "Info" : { "LongName":"Large Starbase"             , "Description":"For bases BP400(H20) or smaller. (Fortress)"                                          } }
-		, { "Name":"SWG", "BPCost": 3                                                  , "DamageRate":0, "Hull": 3, "MaxSize":  9, "PDPerMP":1                       , "CompType":"Hull"       , "Info" : { "LongName":"Small Warp Generator"       , "Description":"For ships BP  9(H 3) or smaller. (Escort)"                                            } }
-		, { "Name":"MWG", "BPCost": 6                                                  , "DamageRate":0, "Hull": 6, "MaxSize": 36, "PDPerMP":2                       , "CompType":"Hull"       , "Info" : { "LongName":"Medium Warp Generator"      , "Description":"For ships BP 36(H 6) or smaller. (Cruiser)"                                           } }
-		, { "Name":"LWG", "BPCost": 9                                                  , "DamageRate":0, "Hull": 8, "MaxSize": 64, "PDPerMP":3                       , "CompType":"Hull"       , "Info" : { "LongName":"Large Warp Generator"       , "Description":"For ships BP 64(H 8) or smaller. (Capital)"                                           } }
-		, { "Name":"GWG", "BPCost":12                                                  , "DamageRate":0, "Hull":10, "MaxSize":100, "PDPerMP":3                       , "CompType":"Hull"       , "Info" : { "LongName":"Giant Warp Generator"       , "Description":"For ships BP100(H10) or smaller. (Supercapital)"                                      } }
-		, { "Name":"SSS", "BPCost": 0                                                  , "DamageRate":0, "Hull": 3, "MaxSize":  9                                    , "CompType":"Hull"       , "Info" : { "LongName":"Small System Ship"          , "Description":"For ships BP  9(H 3) or smaller. (Fighter/Escort)"                                    } }
-		, { "Name":"MSS", "BPCost": 2                                                  , "DamageRate":0, "Hull": 6, "MaxSize": 36                                    , "CompType":"Hull"       , "Info" : { "LongName":"Medium System Ship"         , "Description":"For ships BP 36(H 6) or smaller. (Cruiser)"                                           } }
-		, { "Name":"LSS", "BPCost": 4                                                  , "DamageRate":0, "Hull": 8, "MaxSize": 64                                    , "CompType":"Hull"       , "Info" : { "LongName":"Large System Ship"          , "Description":"For ships BP 64(H 8) or smaller. (Capital)"                                           } }
-		, { "Name":"GSS", "BPCost": 6                                                  , "DamageRate":0, "Hull":10, "MaxSize":100                                    , "CompType":"Hull"       , "Info" : { "LongName":"Giant System Ship"          , "Description":"For ships BP100(H10) or smaller. (Supercapital)"                                      } }
+		, { "Name":"SB" , "BPCost":25                                                  , "DamageRate":0                                                              , "CompType":"Hull"       , "Info" : { "LongName":"Starbase"                   , "Description":"BASES are not ship components. Built on stars with a colony during the Build event."  } }
+		, { "Name":"SS" , "BPCost": 0                                                  , "DamageRate":0, "Hull": 3, "MaxSize":999                                    , "CompType":"Hull"       , "Info" : { "LongName":"System Ship"                , "Description":"Non-jump-capable spacecraft. (Fighter/Monitor)"                                       } }
+		, { "Name":"SWG", "BPCost": 3                                                  , "DamageRate":0, "Hull": 3, "MaxSize":  9, "PDPerMP":1                       , "CompType":"Hull"       , "Info" : { "LongName":"Small Warp Generator"       , "Description":"For ships BP  9 or smaller. No SR allowed. (Escort)"                                  } }
+		, { "Name":"MWG", "BPCost": 5                                                  , "DamageRate":0, "Hull": 6, "MaxSize": 45, "PDPerMP":2                       , "CompType":"Hull"       , "Info" : { "LongName":"Medium Warp Generator"      , "Description":"For ships BP 45 or smaller. (Cruiser)"                                                } }
+		, { "Name":"LWG", "BPCost":10                                                  , "DamageRate":0, "Hull": 8, "MaxSize":999, "PDPerMP":3                       , "CompType":"Hull"       , "Info" : { "LongName":"Large Warp Generator"       , "Description":"For ships BP 45 or larger. (Capital)"                                                 } }
 	]
 	, "ShipTemplate": {
 		  "ID"                     : "TS1-01-001"
@@ -177,7 +171,7 @@
 		      "ID"               : "ISS-0A-001"
 		    , "Name"             : "Portero-1"
 		    , "Owner"            : "Empire"
-		    , "Components"       : { "SSS":1, "PD":4, "S":1, "H":2 }
+		    , "Components"       : { "SS":1, "PD":4, "S":1, "H":2 }
 		    , "Cargo"            : [{ "Name":"BP", "Size":1, "Qty":5 }, { "Name":"BP", "Qty":5 }, "ISB-0A-00A"]
 		    , "Location"         : "IWS-01-001"
 		  }
@@ -185,7 +179,7 @@
 		      "ID"               : "ISB-0A-00A"
 		    , "Name"             : "Orbituo-1"
 		    , "Owner"            : "Empire"
-		    , "Components"       : { "SSB":1, "PD":4, "B":1, "S":2 }
+		    , "Components"       : { "SB":1, "PD":4, "B":1, "S":2 }
 		    , "Location"         : "ISS-0A-001"
 		    , "Damage"           : { "PD":4, "B":2, "SSB":4, "Junk":3, "S":1 }
 		  }
