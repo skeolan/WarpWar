@@ -136,7 +136,7 @@ function print-ComponentDetail()
 		, $lineEntryFullLen         = 45
 	)
 	
-	$compInfoHeader="Max | Dmg | Rem | Pwr "		
+	$compInfoHeader="Eff | Dmg | Max || Pwr "		
 
 	if($collection.Count -gt 0 -or $includeZeroes)
 	{
@@ -173,7 +173,8 @@ function print-ComponentDetail()
 				$eKeyTxt = $eKey
 			}
 			
-			"| {0,-$infoEntryLeftSegmentLen}| {1, -$lineEntryLeftSegmentLen} {2, 3} | {3, 3} | {4,3} | {5,3} {6,$eRightBuffer} |" -f "", $eKeyTxt, $eSpecTxt, $eDmgTxt, $eEffTxt, $ePwrTxt, ""
+			"| {0,-$infoEntryLeftSegmentLen}| {1, -$lineEntryLeftSegmentLen} {2, 3} | {3, 3} | {4,3} || {5,3} {6,$eRightBuffer} |" `
+			-f "", $eKeyTxt, $eEffTxt, $eDmgTxt, $eSpecTxt, $ePwrTxt, ""
 		}
 	}
 	

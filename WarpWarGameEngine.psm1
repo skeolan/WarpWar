@@ -160,17 +160,17 @@ function generate-derivedAttrs()
 	)
 
 	#Total construction cost
-	$unit.BPCost   = ( (get-DerivedValueSet -depKey "BPCost" -attrSet $unit.Components -depSpec $componentSpec )  | measure-object -sum).sum
+	$unit.BPCost   = ( @(get-DerivedValueSet -depKey "BPCost" -attrSet $unit.Components -depSpec $componentSpec )  | measure-object -sum).sum
 
 	#Total Power Allocation
 	$unit.PowerUsed = (nullCoalesce ( $unit.PowerAllocation  | measure-object -property Value -sum).sum,  0 )
 
 	#Hull/drivetype dependent
-	$unit.PDPerMP  = ( (get-DerivedValueSet -depKey "PDPerMP" -attrSet $unit.Components -depSpec $componentSpec )  | measure-object -sum).sum	
-	$unit.BPMax    = ( (get-DerivedValueSet -depKey "MaxSize" -attrSet $unit.Components -depSpec $componentSpec )  | measure-object -sum).sum
+	$unit.PDPerMP  = ( @(get-DerivedValueSet -depKey "PDPerMP" -attrSet $unit.Components -depSpec $componentSpec )  | measure-object -sum).sum	
+	$unit.BPMax    = ( @(get-DerivedValueSet -depKey "MaxSize" -attrSet $unit.Components -depSpec $componentSpec )  | measure-object -sum).sum
 	$unit.MP       = calculate-MovementPoints -drive $unit.Components.PD -efficiency $unit.PDPerMP
 	$unit.HullClass= Get-HullName $unit $componentSpec
-	$unit.HullSize     = ( (get-DerivedValueSet -depKey "Hull" -attrSet $unit.Components -depSpec $componentSpec )  | measure-object -sum).sum	
+	$unit.HullSize = ( @(get-DerivedValueSet -depKey "Hull" -attrSet $unit.Components -depSpec $componentSpec )  | measure-object -sum).sum	
 
 	#BPMax is simple for "vanilla" rules; Optional TL rule alters the BP-by-size calculation 
 	#  from the static max-size spec 
