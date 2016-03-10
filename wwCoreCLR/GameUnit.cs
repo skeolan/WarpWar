@@ -9,12 +9,26 @@ public class GameUnit {
 	public List<char> ComponentSpec; 
 	
 	public GameUnit() 
-        : this(Guid.NewGuid().ToString(), "Uninitialized Unit", UnitType.SystemShip, null)
+        : this(Guid.NewGuid().ToString(), "Uninitialized Unit", UnitType.SystemShip, (List<char>)null)
     {
 
     }
-	
-	public GameUnit (string unitId, String unitName, UnitType uType, List<char> components)
+
+    public GameUnit (string unitID, string unitName, UnitType unitType, string components)
+        : this(unitID, unitName, unitType, (List<char>)null) 
+    {
+        this.ComponentSpec = setComponentSpec(components);
+    }
+
+    private List<char> setComponentSpec(string components) {
+        return setComponentSpec((components ?? "").ToCharArray());
+    }
+
+    private List<char> setComponentSpec(char[] components) {
+        return new List<char>(components);
+    }
+
+    public GameUnit (string unitId, String unitName, UnitType uType, List<char> components)
 	{
 		this.ID            = unitId;
 		this.Name          = unitName;
