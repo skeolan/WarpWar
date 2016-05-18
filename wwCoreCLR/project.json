@@ -4,15 +4,9 @@
     "Newtonsoft.Json": "8.0.2"
   },
   "frameworks": {
-    "dnx451": { },
-    "dnxcore50": {
-      "dependencies": {
-        "System.Collections": "4.0.10",
-        "System.Console": "4.0.0-beta-*",
-        "System.Diagnostics.Debug": "4.0.10"
-      }
+    "dnx451": { }
     }
-  },
+  ,
   "commands": {
     "wwCoreCLR": "wwCoreCLR"
   }
